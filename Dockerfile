@@ -9,5 +9,5 @@ ADD . /root/crubot
 WORKDIR /root/crubot
 RUN npm install
 
-ENTRYPOINT /root/crubot/bin/hubot
+ENTRYPOINT ["/root/crubot/bin/hubot"]
 
