@@ -6,5 +6,6 @@
   "hubot-maps",
   "hubot-rules",
   "hubot-rss-reader",
+  "hubot-google-hangouts",
   "hubot-shipit"
 ]
