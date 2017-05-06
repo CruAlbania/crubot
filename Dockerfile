@@ -7,7 +7,7 @@ VOLUME /data/crubot/leveldb
 # add files
 ADD . /root/crubot
 WORKDIR /root/crubot
-RUN npm install
+RUN npm install && node_modules/.bin/gulp build
 
 ENTRYPOINT ["/root/crubot/bin/hubot"]
 
