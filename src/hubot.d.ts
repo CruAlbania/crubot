@@ -1,144 +1,144 @@
 /// <reference types="node"/>
 
-import { EventEmitter } from "events";
-import * as express from "express";
+import { EventEmitter } from 'events'
+import * as express from 'express'
 import * as Log from 'log'
 
 export class Robot {
-  name: string
+  public name: string
 
-  events: EventEmitter
-  
-  brain: Brain
+  public events: EventEmitter
 
-  alias?: string
+  public brain: Brain
 
-  adapter: any
+  public alias?: string
 
-  Response: Response
+  public adapter: any
 
-  commands: string[]
+  public Response: Response
 
-  listeners: any[]
+  public commands: string[]
 
-  middleware: {
+  public listeners: any[]
+
+  public middleware: {
     listener: Middleware
     response: Middleware
-    receive:  Middleware
+    receive:  Middleware,
   }
 
-  logger: any
-  pingIntervalId: any
-  globalHttpOptions: any
-  adapterName: string
-  errorHandlers: any[]
+  public logger: any
+  public pingIntervalId: any
+  public globalHttpOptions: any
+  public adapterName: string
+  public errorHandlers: any[]
 
   /**
    * Listens using a custom matching function instead of regex
-   * 
+   *
    */
-  listen(matcher: (message: Message) => boolean, options?: any, cb?: responder)
-  
-  /** 
+  public listen(matcher: (message: Message) => boolean, options?: any, cb?: responder)
+
+  /**
    * Listens to all messages in a room, and responds whenever
    *  the given regex matches text.
-   * 
+   *
    * @param regex the text to listen for
    * @param resp  called when any text matches the regex
    */
-  hear(regex: RegExp, options?: Metadata | responder, cb?: responder)
+  public hear(regex: RegExp, options?: Metadata | responder, cb?: responder)
 
   /**
    * Add a listener triggered whenever anyone enters the room
    */
-  enter(options?: Metadata | responder, cb?: responder)
+  public enter(options?: Metadata | responder, cb?: responder)
 
   /**
    * Adds a listener triggered whenever anyone leaves the room
    */
-  leave(options?: Metadata | responder, cb?: responder)
+  public leave(options?: Metadata | responder, cb?: responder)
 
   /**
    * Adds a Listener that triggers when anyone changes the topic.
    */
-  topic(options?: Metadata | responder, cb?: responder)
+  public topic(options?: Metadata | responder, cb?: responder)
 
   /**
    * Adds an error handler when an uncaught exception or user emitted
    * error event occurs.
    */
-  error(callback: (err: Error, res: Response) => void)
+  public error(callback: (err: Error, res: Response) => void)
 
   /**
    * Adds a Listener that triggers when no other text matchers match.
    */
-  catchAll(options?: any, callback?: responder)
+  public catchAll(options?: any, callback?: responder)
 
   /**
    * Listens to messages directly targeted at hubot, responding
    *  only when the message is preceded by the robot's name or alias.
-   * 
+   *
    * example:
    *  hal open the pod bay doors
    *  HAL: open the pod bay doors
    *  @HAL open the pod bay doors
    */
-  respond(regex: RegExp, options?: Metadata | responder, cb?: responder)
+  public respond(regex: RegExp, options?: Metadata | responder, cb?: responder)
 
   /**
    * Sends a message to an explicitly named room or user.
    */
-  messageRoom(room: string, message: string)
+  public messageRoom(room: string, message: string)
 
   /**
    * Makes HTTP calls using node-scoped-http-client
-   * 
+   *
    * https://hubot.github.com/docs/scripting/#making-http-calls
    */
-  http(url: string): any
+  public http(url: string): any
 
   /**
    * Registers new middleware for execution after matching but before
    * Listener callbacks
    */
-  listenerMiddleware(middleware: Middleware): void
+  public listenerMiddleware(middleware: Middleware): void
 
   /**
    * Registers new middleware for execution as a response to any
    *  message is being sent.
    */
-  responseMiddleware(middleware: Middleware): void
+  public responseMiddleware(middleware: Middleware): void
 
   /**
    * Registers new middleware for execution before matching
    */
-  receiveMiddleware(middleware: Middleware): void
+  public receiveMiddleware(middleware: Middleware): void
 
   /**
    * Passes the given message to any interested Listeners after running
    *  receive middleware.
    */
-  receive(message: Message, cb?: any)
+  public receive(message: Message, cb?: any)
 
   /**
    * Returns an Array of help commands for running scripts.
    */
-  helpCommands(): string[]
+  public helpCommands(): string[]
 
   /**
    * A wrapper around the EventEmitter API
    */
-  on(event: string, ...args: any[])
+  public on(event: string, ...args: any[])
 
   /**
    * A wrapper around the EventEmitter API
    */
-  emit(event: string, ...args: any[])
+  public emit(event: string, ...args: any[])
 
   /**
    * Provides HTTP endpoints for services with webhooks to push to.
    */
-  router: express.Application
+  public router: express.Application
 }
 
 type responder = (res: Response) => void
@@ -152,8 +152,8 @@ type responder = (res: Response) => void
  */
 type Middleware = (context: any, next: (doneFunc: () => void) => void, done: () => void) => void
 
-export class Metadata{
-  id: string
+export class Metadata {
+  public id: string
 
   [key: string]: any
 }
@@ -163,88 +163,88 @@ export class Response {
   /**
    * The match array from the regex given to 'hear' or 'respond'
    */
-  match: RegExpMatchArray
+  public match: RegExpMatchArray
 
-  envelope: {
+  public envelope: {
     user: User
     room: Room
-    message: Message
+    message: Message,
   }
-  
+
   /**
    * Sends the respose string back to the room that the message came from.
    *  The given text is sent as-is.
    */
-  send(...strings: string[])
+  public send(...strings: string[])
 
   /**
    * Posts an emote back to the chat source
    */
-  emote(...strings: string[])
+  public emote(...strings: string[])
 
   /**
    * Sends the response string as a reply to the user who sent the initial message.
-   * 
+   *
    * example:
    *   robot.respond(/open the pod bay doors/i, (res) => {
    *     res.reply("I'm afraid I can't let you do that")
    *   })
-   * 
+   *
    *   Dave - "HAL, open the pod bay doors"
    *   HAL  - "Dave: I'm afraid I can't let you do that"
    */
-  reply(...strings: string[])
+  public reply(...strings: string[])
 
   /**
    * Posts a topic changing message
    */
-  topic(...strings: string[])
+  public topic(...strings: string[])
 
   /**
    * Picks a random item from the given items.
    */
-  random<T>(items: T[]): T
+  public random<T>(items: T[]): T
 
   /**
    * Tell the message to stop dispatching to listeners
    */
-  finish(): void
+  public finish(): void
 
   /**
    * Create a scoped http client
    */
-  http(url: string, options?: any): any
+  public http(url: string, options?: any): any
 }
 
-export class Message{
+export class Message {
   constructor(user: User, done?: boolean)
 
-  user: User
-  room?: Room
+  public user: User
+  public room?: Room
 
   /** Indicates that no other Listener should be called on this object */
-  finish(): void
+  public finish(): void
 }
 
 export class TextMessage extends Message {
-  match(regex: RegExp): RegExpMatchArray
+  public match(regex: RegExp): RegExpMatchArray
 
-  toString(): string
+  public toString(): string
 }
 
-export class EnterMessage extends Message{}
+export class EnterMessage extends Message {}
 
-export class LeaveMessage extends Message{}
+export class LeaveMessage extends Message {}
 
-export class TopicMessage extends TextMessage{}
+export class TopicMessage extends TextMessage {}
 
-export class CatchAllMessage extends Message{}
+export class CatchAllMessage extends Message {}
 
 export class User {
-  id: string
-  name: string
+  public id: string
+  public name: string
 
-  room?: Room
+  public room?: Room
 
   [option: string]: any
 }
@@ -252,35 +252,34 @@ export class User {
 type Room = string
 
 export class Brain extends EventEmitter {
-  data: {
-    users: any
+  public data: {
+    users: any,
   }
 
-  set(key: string, value: any)
+  public set(key: string, value: any)
 
-  get(key: string): any
+  public get(key: string): any
 
-  remove(key: string)
+  public remove(key: string)
 
-  save(): void
+  public save(): void
 
-  close(): void
+  public close(): void
 
-  setAutoSave(enabled: boolean): void
+  public setAutoSave(enabled: boolean): void
 
-  resetSaveInterval(seconds: number): void
+  public resetSaveInterval(seconds: number): void
 
-  mergeData(data: any): void
+  public mergeData(data: any): void
 
-  users(): any
+  public users(): any
 
-  userForId(id: string, options?: any): User
+  public userForId(id: string, options?: any): User
 
-  userForName(name: string): User
+  public userForName(name: string): User
 
-  usersForRawFuzzyName(fuzzyName: string): User[]
+  public usersForRawFuzzyName(fuzzyName: string): User[]
 
-  usersForFuzzyName(fuzzyName: string): User[]
-
+  public usersForFuzzyName(fuzzyName: string): User[]
 
 }
