@@ -57,6 +57,7 @@ hubot rss list
     memes: 'I know a lot of memes!  Try generating a meme!',
     pug: 'This is the best command!  Try the pug bomb!',
     rss: 'Use these commands to control rss feeds that I subscribe to',
+    youtube: 'I can search youtube for you and find a relevant video',
   }
   robot.respond(/help(?:\s+(.*))?/i, (res) => {
     const replyInPrivate = process.env.HUBOT_HELP_REPLY_IN_PRIVATE
@@ -70,10 +71,10 @@ hubot rss list
     }
 
     if (!res.match[1]) {
-      let reply = 'I can do a lot of things!  Which would you like to know more about? You can say:  \n'
+      let reply = 'I can do a lot of things!  Which would you like to know more about? You can say:  \n\n'
       for (const k in commands) {
         if (commands.hasOwnProperty(k)) {
-          reply += `${robot.name} help ${k} - ${commands[k]}  \n`
+          reply += `* ${robot.name} help ${k} - ${commands[k]}  \n`
         }
       }
       reply += '\nOr you can see all commands by typing `' + robot.name + ' help all`.'
@@ -85,41 +86,42 @@ hubot rss list
       case 'all':
       {
         const cmds = renamedHelpCommands(robot)
-        const reply = "Here's a list of all the things I can do:  \n" +
-                        cmds.join('  \n')
+        const reply = "Here's a list of all the things I can do:  \n\n" +
+                        cmds.map((c) => '* ' + c).join('  \n')
         sendReply(reply)
         break
       }
 
       case 'memes':
       {
-        const memes =
-`<text> (SUCCESS|NAILED IT) - Meme: Success kid w/ top caption
-<text> ALL the <things> - Meme: ALL THE THINGS
-<text> TOO DAMN <high> - Meme: THE RENT IS TOO DAMN HIGH guy
-<text>, <text> EVERYWHERE - Meme: Generates Buzz Lightyear
-<text>, AND IT'S GONE - Meme: Bank Teller
-<text>, BITCH PLEASE <text> - Meme: Yao Ming
-<text>, COURAGE <text> - Meme: Courage Wolf
-Aliens guy <text> - Meme: Aliens guy
-All your <text> are belong to <text> - Meme: All your <text> are belong to <text>
-Brace yourself <text> - Meme: Ned Stark braces for <text>
-I don't always <something> but when i do <text> - Meme: The Most Interesting man in the World
-IF <text> THAT'D BE GREAT - Meme: Generates Lumberg
-IF YOU <text> GONNA HAVE A BAD TIME - Meme: Ski Instructor
-IF YOU <text> TROLLFACE <text> - Meme: Troll Face
-If <text>, <question> <text>? - Meme: Philosoraptor
-Iron Price <text> - Meme: To get <text>? Pay the iron price!
-MUCH <text> (SO|VERY) <text> - Meme: Generates Doge
-Not sure if <something> or <something else> - Meme: Futurama Fry
-ONE DOES NOT SIMPLY <text> - Meme: Boromir
-WHAT IF I TOLD YOU <text> - Meme: Morpheus "What if I told you"
-WTF <text> - Meme: Picard WTF
-Y U NO <text> - Meme: Y U NO GUY w/ bottom caption
-Yo dawg <text> so <text> - Meme: Yo Dawg
-pun | bad joke eel <text> / <text> - Meme: Bad joke eel
-pun | bad joke eel <text>? <text> - Meme: Bad joke eel`
-        sendReply('Try one of these memes:  \n' + memes.split('\\n').join(`\\n${robot.name} `))
+        const memes = [
+          '<text> (SUCCESS|NAILED IT) - Meme: Success kid w/ top caption',
+          '<text> ALL the <things> - Meme: ALL THE THINGS',
+          '<text> TOO DAMN <high> - Meme: THE RENT IS TOO DAMN HIGH guy',
+          '<text>, <text> EVERYWHERE - Meme: Generates Buzz Lightyear',
+          "<text>, AND IT'S GONE - Meme: Bank Teller",
+          '<text>, BITCH PLEASE <text> - Meme: Yao Ming',
+          '<text>, COURAGE <text> - Meme: Courage Wolf',
+          'Aliens guy <text> - Meme: Aliens guy',
+          'All your <text> are belong to <text> - Meme: All your <text> are belong to <text>',
+          'Brace yourself <text> - Meme: Ned Stark braces for <text>',
+          "I don't always <something> but when i do <text> - Meme: The Most Interesting man in the World",
+          "IF <text> THAT'D BE GREAT - Meme: Generates Lumberg",
+          'IF YOU <text> GONNA HAVE A BAD TIME - Meme: Ski Instructor"',
+          'IF YOU <text> TROLLFACE <text> - Meme: Troll Face',
+          'If <text>, <question> <text>? - Meme: Philosoraptor',
+          'Iron Price <text> - Meme: To get <text>? Pay the iron price!',
+          'MUCH <text> (SO|VERY) <text> - Meme: Generates Doge',
+          'Not sure if <something> or <something else> - Meme: Futurama Fry',
+          'ONE DOES NOT SIMPLY <text> - Meme: Boromir',
+          'WHAT IF I TOLD YOU <text> - Meme: Morpheus "What if I told you"',
+          'WTF <text> - Meme: Picard WTF',
+          'Y U NO <text> - Meme: Y U NO GUY w/ bottom caption',
+          'Yo dawg <text> so <text> - Meme: Yo Dawg',
+          'pun | bad joke eel <text> / <text> - Meme: Bad joke eel',
+          'pun | bad joke eel <text>? <text> - Meme: Bad joke eel`',
+        ]
+        sendReply('Try one of these memes:  \n\n' + memes.map((c) => ` * ${robot.name} ${c}  `).join('\n'))
 
         break
       }
@@ -127,9 +129,9 @@ pun | bad joke eel <text>? <text> - Meme: Bad joke eel`
       default:
       {
         const match = new RegExp(res.match[1], 'i')
-        const cmds = renamedHelpCommands(robot).filter(match.test)
-        const reply = `Here's a list of all the things I can do related to ${res.match[1]}:  \n` +
-                        cmds.join('  \n')
+        const cmds = renamedHelpCommands(robot).filter((c) => match.test(c))
+        const reply = `Here's a list of all the things I can do related to ${res.match[1]}:  \n\n` +
+                        cmds.map((c) => '* ' + c).join('  \n')
         sendReply(reply)
       }
       break

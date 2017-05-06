@@ -1642,6 +1642,10 @@ hubot-test-helper@^1.5.1:
   dependencies:
     hubot ">= 2.6.0 < 3"
 
+hubot-youtube@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/hubot-youtube/-/hubot-youtube-1.0.2.tgz#6ead1e53b80933eb2a5e55849879ad300876660f"
+
 "hubot@>= 2.6.0 < 3", hubot@^2.19.0:
   version "2.19.0"
   resolved "https://registry.yarnpkg.com/hubot/-/hubot-2.19.0.tgz#87c572d210fb0d5f89f756177ae0020d49ffba36"
