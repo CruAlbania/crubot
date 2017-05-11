@@ -93,21 +93,25 @@ export class OAuthListener {
       const {code, state} = req.query
 
       if (!code || !state) {
-        res.send('<html><h2>Missing code or state in query string!</h2></html>')
+        res.send('<html><h2>Bad Request!</h2>should have "code" and "state" in the query string</html>')
         return
       }
 
       const stateParts = (state as string).split(':')
       if (stateParts.length < 2) {
-        res.send('<html><h2>Expected state to contain a colon!</h2>the state was ' + state + '</html>')
+        res.send('<html><h2>Bad request!</h2>"state" should contain a colon, but was ' + state + '</html>')
         return
       }
       const userId = stateParts[0]; const hash = stateParts[1]
 
-      const expectedHash = this.hashes.get(userId)
-      if (expectedHash.hash !== hash) {
-        res.send('<html><h2>Expected state hash to match what we have stored!</h2>' +
-         'expected: ' + expectedHash + ' but was ' + hash + '</html>')
+      const expectedHash = self.hashes.get(userId)
+      if (!expectedHash || expectedHash.hash !== hash) {
+        let body = `your state code doesnt exist.  Ask ${self.robot.name} to sign in again`
+        if (expectedHash) {
+           body = 'expected: ' + expectedHash + ' but was ' + hash
+        }
+
+        res.send('<html><h2>Invalid code!</h2>' + body + '</html>')
         return
       }
       if (expectedHash.expires < Date.now()) {
@@ -116,6 +120,7 @@ export class OAuthListener {
       }
       self.robot.logger.log(`[gitlab] <sign in> getting token for bot user ${userId} with code ${code}`)
 
+      self.hashes.delete(userId)
       // OK, they gave us a code.  We can get the token now.
       // parameters = 'client_id=APP_ID&client_secret=APP_SECRET&code=RETURNED_CODE&
       //    grant_type=authorization_code&redirect_uri=REDIRECT_URI'
@@ -194,7 +199,6 @@ export class OAuthListener {
           const newToken = await self.refresh(token)
           store.set('gitlab.' + user.id, newToken)
           res.reply('You are already signed in!')
-          self.robot.messageRoom(res.envelope.user.id, 'Here is your access key: ' + newToken.access_token)
           return
         } catch (err) {
           self.robot.logger.error('[gitlab] <sign in>' + err)
@@ -203,7 +207,6 @@ export class OAuthListener {
         }
       } else {
         res.reply('You are already signed in!')
-        self.robot.messageRoom(res.envelope.user.id, 'Here is your access key: ' + token.access_token)
         return
       }
     }
@@ -215,10 +218,10 @@ export class OAuthListener {
 
     // https://gitlab.example.com/oauth/authorize?client_id=APP_ID&redirect_uri=REDIRECT_URI
           // &response_type=code&state=your_unique_state_hash
-    self.robot.messageRoom(res.envelope.user.id, `${this.options.gitlabUrl}/oauth/authorize?` +
+    res.reply(`click here to authorize me to access your gitlab account:  \n` +
+      `${this.options.gitlabUrl}/oauth/authorize?` +
       `client_id=${this.options.appId}&redirect_uri=${encodeURIComponent(this.options.callbackUrl)}&` +
       `response_type=code&state=${encodeURIComponent(user.id + ':' + stateHash)}`)
-    res.reply('Sent you a link in private to sign-in!')
   }
 
   public signout(res: Response) {

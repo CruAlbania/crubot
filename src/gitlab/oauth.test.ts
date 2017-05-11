@@ -1,12 +1,14 @@
 // tslint:disable:no-unused-expression
 import * as chai from 'chai'
+import * as express from 'express'
 import * as fs from 'fs'
+import * as request from 'request'
 import * as url from 'url'
 const expect = chai.expect
 
 import {UserToken} from './oauth'
 
-process.env.HUBOT_GITLAB_URL = 'https://gitlab.myurl.test'
+process.env.HUBOT_GITLAB_URL = 'http://localhost:8081'
 process.env.HUBOT_GITLAB_APP_ID = 'test_app_id'
 process.env.HUBOT_GITLAB_APP_SECRET = 'test_app_secret'
 process.env.HUBOT_URL = 'https://hubot.myurl.test'
@@ -39,12 +41,12 @@ describe('OAuthListener', () => {
       await wait(10)  // need a quick yield so hubot can finish
 
       // assert
-      expect(room.messages).to.have.length(3)
-      expect(room.messages[2][1]).contains('Sent you a link in private')
+      expect(room.messages).to.have.length(2)
 
-      const link = url.parse(room.messages[1][1], true)
-      expect(link.host).to.equal('gitlab.myurl.test')
-      expect(link.protocol).to.equal('https:')
+      const linkText = room.messages[1][1].split('\n')[1]
+      const link = url.parse(linkText, true)
+      expect(link.host).to.equal('localhost:8081')
+      expect(link.protocol).to.equal('http:')
       expect(link.pathname).to.equal('/oauth/authorize')
       expect(link.query.client_id).to.equal('test_app_id')
       expect(decodeURIComponent(link.query.redirect_uri)).to.equal('https://hubot.myurl.test/gitlab/oauth')
@@ -70,9 +72,8 @@ describe('OAuthListener', () => {
       await wait(10)  // need a quick yield so hubot can finish
 
       // assert
-      expect(room.messages).to.have.length(3)
-      expect(room.messages[2][1].toLowerCase()).contains('you are already signed in')
-      expect(room.messages[1][1].toLowerCase()).contains('here is your access key: abcd1234')
+      expect(room.messages).to.have.length(2)
+      expect(room.messages[1][1].toLowerCase()).contains('you are already signed in')
     })
 
     it('should remove bad token with unset access_token from brain', async () => {
@@ -94,11 +95,11 @@ describe('OAuthListener', () => {
         await wait(10)  // need a quick yield so hubot can finish
 
         // assert
-        expect(room.messages).to.have.length(3)
-        expect(room.messages[2][1]).contains('Sent you a link in private')
+        expect(room.messages).to.have.length(2)
 
-        const link = url.parse(room.messages[1][1], true)
-        expect(link.host).to.equal('gitlab.myurl.test')
+        const linkText = room.messages[1][1].split('\n')[1]
+        const link = url.parse(linkText, true)
+        expect(link.host).to.equal('localhost:8081')
     })
   })
 
@@ -127,7 +128,7 @@ describe('OAuthListener', () => {
       // assert
       expect(room.messages).to.have.length(2)
       expect(room.messages[1][1].toLowerCase()).contains('forgot your access key')
-      expect(room.messages[1][1].toLowerCase()).contains('https://gitlab.myurl.test/profile/applications')
+      expect(room.messages[1][1].toLowerCase()).contains('http://localhost:8081/profile/applications')
       expect(room.robot.brain.get('gitlab.alice')).to.be.undefined
     })
 
@@ -151,6 +152,98 @@ describe('OAuthListener', () => {
       expect(room.messages).to.have.length(2)
       expect(room.messages[1][1].toLowerCase()).contains("you're already signed out")
       expect(room.robot.brain.get('gitlab.alice')).to.equal(token, "alice's token")
+    })
+  })
+
+  describe('/gitlab/oauth', () => {
+
+    let app
+    let server
+    beforeEach(() => {
+      app = express()
+      server = app.listen(8081)
+    })
+
+    afterEach(() => {
+      server.close()
+    })
+
+    it('should handle empty get', (done) => {
+      request.get('http://localhost:8080/gitlab/oauth', (err, resp) => {
+        expect(err).to.be.null
+
+        expect(resp.body).to.contain('Bad Request!')
+
+        done()
+      })
+    })
+
+    it('should handle unexpected hash', (done) => {
+      request.get('http://localhost:8080/gitlab/oauth?code=1234&state=alice:abcd', (err, resp) => {
+        expect(err).to.be.null
+
+        expect(resp.body).to.contain('Invalid code!')
+
+        done()
+      })
+    })
+
+    it('should accept generated hash', async () => {
+      await room.user.say('alice', 'hubot gitlab sign in')
+      await wait(10)  // need a quick yield so hubot can finish
+      const linkText = room.messages[1][1].split('\n')[1]
+      const link = url.parse(linkText, true)
+
+      app.post('/oauth/token', (req, res) => {
+        res.send(`{ "access_token": "69273",
+              "token_type": "bearer",
+              "refresh_token": "29da8",
+              "scope": "api",
+              "created_at": 1494512976
+            }`)
+      })
+
+      // act
+      return new Promise<void>((resolve, reject) => {
+        request.get('http://localhost:8080/gitlab/oauth?code=1234&state=' + encodeURIComponent(link.query.state), (err, resp) => {
+          expect(err).to.be.null
+
+          expect(resp.body).to.contain('Got your token')
+
+          resolve()
+        })
+      })
+    })
+
+    it('should not allow the same link twice', async () => {
+      await room.user.say('alice', 'hubot gitlab sign in')
+      await wait(10)  // need a quick yield so hubot can finish
+      const linkText = room.messages[1][1].split('\n')[1]
+      const link = url.parse(linkText, true)
+
+      app.post('/oauth/token', (req, res) => {
+        res.send(`{ "access_token": "69273",
+              "token_type": "bearer",
+              "refresh_token": "29da8",
+              "scope": "api",
+              "created_at": 1494512976
+            }`)
+      })
+
+      return new Promise<void>((resolve, reject) => {
+        request.get('http://localhost:8080/gitlab/oauth?code=1234&state=' + encodeURIComponent(link.query.state), (err, resp) => {
+          expect(err).to.be.null
+
+          // act - send the request a second time
+          request.get('http://localhost:8080/gitlab/oauth?code=1234&state=' + encodeURIComponent(link.query.state), (err2, resp2) => {
+            expect(err2).to.be.null
+
+            expect(resp2.body).to.contain('Invalid code!')
+
+            resolve()
+          })
+        })
+      })
     })
   })
 })
