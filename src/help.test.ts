@@ -1,9 +1,14 @@
 import * as chai from 'chai'
 import * as fs from 'fs'
-import * as Helper from 'hubot-test-helper'
-import * as ts from 'typescript'
 const expect = chai.expect
 
+
+  // hubot-test-helper uses a reference to module.parent.filename to find hubot script files.
+  // this screws with tests that are in different different directories - whichever is required first sets the module.
+  // So we delete and re-require it every time.
+delete require.cache[require.resolve('hubot-test-helper')]
+// tslint:disable-next-line:no-var-requires
+const Helper = require('hubot-test-helper')
 const helper = new Helper('./help.ts')
 
 describe('hubot help', () => {

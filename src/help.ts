@@ -1,3 +1,19 @@
+// Description:
+//   A more helpful help command.
+//
+// Dependencies:
+//   "<module name>": "<module version>"
+//
+// Configuration:
+//
+// Commands:
+//   hubot help - The friendly help prompt
+//
+// Notes:
+//
+//
+// Author:
+//   gburgett
 
 import { Robot } from './hubot'
 
@@ -52,6 +68,7 @@ hubot rss list
    *
    */
   const commands = {
+    gitlab: 'This lets users connect to Gitlab and manage their repositories.',
     hangout: 'This generates a Google hangout link for us to use',
     map: 'This uses Google maps to show a map of a given location',
     memes: 'I know a lot of memes!  Try generating a meme!',

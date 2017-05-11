@@ -1,0 +1,54 @@
+// Description:
+//   Allows users to connect to their Gitlab accounts on the given gitlab server.
+//
+// Dependencies:
+//   "<module name>": "<module version>"
+//
+// Configuration:
+//   HUBOT_URL=https://hubot.mydomain.com - The URL on which the bot's http interface is exposed
+//   HUBOT_GITLAB_URL=https://gitlab.com  - The URL of the gitlab instance to connect to.  Defaults to https://gitlab.com
+//   HUBOT_GITLAB_APP_ID=abcd2345....     - The Application ID generated at ${HUBOT_GITLAB_URL}/profile/applications
+//   HUBOT_GITLAB_APP_SECRET=1234abcd.... - The Application secret generated at ${HUBOT_GITLAB_URL}/profile/applications
+//
+// Commands:
+//   hubot gitlab sign in - Sends the user a private link which grants the bot API access to their gitlab account.
+//
+// Notes:
+//
+//
+// Author:
+//   gburgett
+
+import {OAuthListener} from './gitlab/oauth'
+import { Robot } from './hubot'
+
+const HUBOT_URL = process.env.HUBOT_URL
+const GITLAB_APP_ID = process.env.HUBOT_GITLAB_APP_ID
+const GITLAB_APP_SECRET = process.env.HUBOT_GITLAB_APP_SECRET
+const GITLAB_URL = process.env.HUBOT_GITLAB_URL
+
+module.exports = (robot: Robot) => {
+
+  const options = {
+    gitlabUrl: GITLAB_URL || 'https://gitlab.com',
+    callbackUrl: HUBOT_URL + '/gitlab/oauth',
+    appId: GITLAB_APP_ID,
+    appSecret: GITLAB_APP_SECRET,
+  }
+  const oauth = new OAuthListener(options, robot)
+  robot.router.use('/gitlab/oauth', oauth.router())
+
+  robot.logger.info('[gitlab] enabled with options ' + JSON.stringify(options))
+
+  robot.respond(/gitlab sign in/i, { id: 'gitlab.sign_in' }, oauth.signin)
+  robot.respond(/gitlab sign out/i, { id: 'gitlab.sign_out' }, oauth.signout)
+
+
+  robot.error((err, res) => {
+    robot.logger.error('DOES NOT COMPUTE')
+
+    if (res) {
+      res.reply('DOES NOT COMPUTE')
+    }
+  })
+}
