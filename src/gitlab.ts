@@ -11,7 +11,8 @@
 //   HUBOT_GITLAB_APP_SECRET=1234abcd.... - The Application secret generated at ${HUBOT_GITLAB_URL}/profile/applications
 //
 // Commands:
-//   hubot gitlab sign in - Sends the user a private link which grants the bot API access to their gitlab account.
+//   hubot gitlab sign in - Sends the a private link which grants the bot API access to your gitlab account.
+//   hubot gitlab sign out - Forgets the gitlab access token. You should then go revoke it in the gitlab web console.
 //
 // Notes:
 //
