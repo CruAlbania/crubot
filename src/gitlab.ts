@@ -1,5 +1,5 @@
 // Description:
-//   Allows users to connect to their Gitlab accounts on the given gitlab server.
+//   Have hubot do things on your gitlab server.
 //
 // Dependencies:
 //   "<module name>": "<module version>"
