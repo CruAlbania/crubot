@@ -22,9 +22,9 @@ export class Robot {
   public listeners: any[]
 
   public middleware: {
-    listener: Middleware
-    response: Middleware
-    receive:  Middleware,
+    listener: Middleware<ListenerMiddlewareContext>
+    response: Middleware<ResponseMiddlewareContext>
+    receive:  Middleware<ReceiveMiddlewareContext>
   }
 
   public logger: any
@@ -101,18 +101,18 @@ export class Robot {
    * Registers new middleware for execution after matching but before
    * Listener callbacks
    */
-  public listenerMiddleware(middleware: Middleware): void
+  public listenerMiddleware(middleware: Middleware<ListenerMiddlewareContext>): void
 
   /**
    * Registers new middleware for execution as a response to any
    *  message is being sent.
    */
-  public responseMiddleware(middleware: Middleware): void
+  public responseMiddleware(middleware: Middleware<ResponseMiddlewareContext>): void
 
   /**
    * Registers new middleware for execution before matching
    */
-  public receiveMiddleware(middleware: Middleware): void
+  public receiveMiddleware(middleware: Middleware<ReceiveMiddlewareContext>): void
 
   /**
    * Passes the given message to any interested Listeners after running
@@ -150,10 +150,29 @@ type responder = (res: Response) => void
  *  If execution should stop, the middleware should call done().
  *  To modify the outgoing message, set context.string to a new message
  */
-type Middleware = (context: any, next: (doneFunc: () => void) => void, done: () => void) => void
+type Middleware<T> = (context: T, next: (doneFunc?: () => void) => void, done: () => void) => void
 
-export class Metadata {
-  public id: string
+type ReceiveMiddlewareContext = {
+  response: Response
+}
+
+type ListenerMiddlewareContext = {
+  response: Response
+  listener: {
+    /** The metadata defined on a robot listener */
+    options?: Metadata
+  }
+}
+
+type ResponseMiddlewareContext = {
+  response: Response
+  strings: string[]
+  method: string
+  plaintext?: boolean
+}
+
+type Metadata = {
+  id: string
 
   [key: string]: any
 }
@@ -240,11 +259,11 @@ export class TopicMessage extends TextMessage {}
 
 export class CatchAllMessage extends Message {}
 
-export class User {
-  public id: string
-  public name: string
+type User = {
+  id: string
+  name: string
 
-  public room?: Room
+  room?: Room
 
   [option: string]: any
 }
