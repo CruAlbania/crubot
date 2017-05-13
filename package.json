@@ -43,8 +43,8 @@
     "@types/request": "^0.0.43",
     "@types/sinon": "^2.2.1",
     "chai": "^3.5.0",
+    "del": "^2.2.2",
     "gulp": "^3.9.1",
-    "gulp-clean": "^0.3.2",
     "gulp-rename": "^1.2.2",
     "gulp-typescript": "^3.1.6",
     "hubot-test-helper": "^1.5.1",
@@ -53,6 +53,7 @@
     "sinon": "^2.2.0",
     "ts-node": "^3.0.4",
     "tslint": "^5.2.0",
-    "typescript": "^2.3.2"
+    "typescript": "^2.3.2",
+    "vinyl-paths": "^2.1.0"
   }
 }
