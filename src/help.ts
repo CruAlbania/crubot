@@ -18,7 +18,7 @@
 import * as Fs from 'fs'
 import * as Path from 'path'
 
-import { Robot } from './hubot'
+import { Robot, CatchAllMessage, TextMessage } from './hubot'
 
 function script(robot: Robot) {
   const cwd = '.'
@@ -156,16 +156,7 @@ I also respond to "${robot.alias}".`
     }
 
     const query = res.match[1].toLowerCase().trim()
-    const allCommands = []
-    for (const k in scripts) {
-      if (!scripts.hasOwnProperty(k)) {
-        continue
-      }
-      const h = (scripts[k] as Help)
-      if (h.commands) {
-        allCommands.push(...h.commands)
-      }
-    }
+    const allCommands = getAllCommands(scripts)
 
     // hubot help all
     if (query === 'all') {
@@ -201,6 +192,42 @@ I also respond to "${robot.alias}".`
     sendReply("Sorry!  I couldn't find anything related to " + res.match[1])
   })
 
+  // ---------- Catch all which searches commands ------------- //
+  const nameRegex = new RegExp('^' + robot.name + ' ', 'i')
+  robot.catchAll((res) => {
+    // strip the robot's name before doing the search
+    const msg = res.envelope.message as CatchAllMessage
+    const txtMsg = (msg.message as TextMessage).text.replace(nameRegex, '')
+
+    // run a search on the unknown command
+    let matches = executeSearch(txtMsg, getAllCommands(scripts))
+    if (matches.length > 0) {
+      matches = matches.slice(0, 5).map((m) => '* ' + m)
+      matches.splice(0, 0, "Sorry, I didn't catch that.  Try one of these?")
+      res.reply(matches.join('\n'))
+    } else {
+      res.reply(`Sorry, I didn't catch that.  Try \`${robot.name} help\``)
+    }
+  })
+
+}
+
+/**
+ * Once all the help documentation is parsed into an associative array,
+ * This function iterates that array to get all the commands
+ */
+function getAllCommands(scripts: any): string[] {
+  const allCommands = []
+  for (const k in scripts) {
+    if (!scripts.hasOwnProperty(k)) {
+      continue
+    }
+    const h = (scripts[k] as Help)
+    if (h.commands) {
+      allCommands.push(...h.commands)
+    }
+  }
+  return allCommands
 }
 
 /**

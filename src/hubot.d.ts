@@ -5,29 +5,22 @@ import * as express from 'express'
 import * as Log from 'log'
 
 export class Robot {
+  
   public name: string
-
   public events: EventEmitter
-
   public brain: Brain
-
   public alias?: string
-
   public adapter: any
-
   public Response: Response
-
   public commands: string[]
-
-  public listeners: any[]
-
+  public listeners: Listener[]
   public middleware: {
     listener: Middleware<ListenerMiddlewareContext>
     response: Middleware<ResponseMiddlewareContext>
     receive:  Middleware<ReceiveMiddlewareContext>
   }
 
-  public logger: any
+  public logger: Log
   public pingIntervalId: any
   public globalHttpOptions: any
   public adapterName: string
@@ -37,7 +30,7 @@ export class Robot {
    * Listens using a custom matching function instead of regex
    *
    */
-  public listen(matcher: (message: Message) => boolean, options?: any, cb?: responder)
+  public listen(matcher: (message: Message) => boolean, options?: any, cb?: ListenerFunc)
 
   /**
    * Listens to all messages in a room, and responds whenever
@@ -46,22 +39,22 @@ export class Robot {
    * @param regex the text to listen for
    * @param resp  called when any text matches the regex
    */
-  public hear(regex: RegExp, options?: Metadata | responder, cb?: responder)
+  public hear(regex: RegExp, options?: Metadata | ListenerFunc, cb?: ListenerFunc)
 
   /**
    * Add a listener triggered whenever anyone enters the room
    */
-  public enter(options?: Metadata | responder, cb?: responder)
+  public enter(options?: Metadata | ListenerFunc, cb?: ListenerFunc)
 
   /**
    * Adds a listener triggered whenever anyone leaves the room
    */
-  public leave(options?: Metadata | responder, cb?: responder)
+  public leave(options?: Metadata | ListenerFunc, cb?: ListenerFunc)
 
   /**
    * Adds a Listener that triggers when anyone changes the topic.
    */
-  public topic(options?: Metadata | responder, cb?: responder)
+  public topic(options?: Metadata | ListenerFunc, cb?: ListenerFunc)
 
   /**
    * Adds an error handler when an uncaught exception or user emitted
@@ -72,7 +65,7 @@ export class Robot {
   /**
    * Adds a Listener that triggers when no other text matchers match.
    */
-  public catchAll(options?: any, callback?: responder)
+  public catchAll(options?: Metadata | ListenerFunc, callback?: ListenerFunc)
 
   /**
    * Listens to messages directly targeted at hubot, responding
@@ -83,7 +76,7 @@ export class Robot {
    *  HAL: open the pod bay doors
    *  @HAL open the pod bay doors
    */
-  public respond(regex: RegExp, options?: Metadata | responder, cb?: responder)
+  public respond(regex: RegExp, options?: Metadata | ListenerFunc, cb?: ListenerFunc)
 
   /**
    * Sends a message to an explicitly named room or user.
@@ -141,7 +134,7 @@ export class Robot {
   public router: express.Application
 }
 
-type responder = (res: Response) => void
+type ListenerFunc = (res: Response) => void
 
 /**
  * A function that examines an outgoing message and can modify
@@ -179,10 +172,19 @@ type Metadata = {
 
 export class Response {
 
+  constructor(robot: Robot, message: Message, match?: RegExpMatchArray | boolean)
+
+  robot: Robot
+
+  /**
+   * The message which caused this response
+   */
+  message: Message
+
   /**
    * The match array from the regex given to 'hear' or 'respond'
    */
-  public match: RegExpMatchArray
+  public match?: RegExpMatchArray | boolean
 
   public envelope: {
     user: User
@@ -220,6 +222,19 @@ export class Response {
   public topic(...strings: string[])
 
   /**
+   * Play a sound in the chat source
+   * 
+   * strings - One or more strings to be posted as sounds to play. The order of
+   *          these strings should be kept intact.
+   */
+  public play(...strings: string[])
+
+  /**
+   * Posts a message in an unlogged room
+   */
+  public locked(...strings: string[])
+
+  /**
    * Picks a random item from the given items.
    */
   public random<T>(items: T[]): T
@@ -230,7 +245,10 @@ export class Response {
   public finish(): void
 
   /**
-   * Create a scoped http client
+   * Creates a scoped http client with chainable methods for
+   * modifying the request. This doesn't actually make a request though.
+   * Once your request is assembled, you can call `get()`/`post()`/etc to
+   * send the request.
    */
   public http(url: string, options?: any): any
 }
@@ -246,6 +264,11 @@ export class Message {
 }
 
 export class TextMessage extends Message {
+  constructor(user: User, text: string, id: string)
+
+  public text: string
+  public id?: string
+
   public match(regex: RegExp): RegExpMatchArray
 
   public toString(): string
@@ -257,7 +280,11 @@ export class LeaveMessage extends Message {}
 
 export class TopicMessage extends TextMessage {}
 
-export class CatchAllMessage extends Message {}
+export class CatchAllMessage extends Message {
+  constructor(message: Message)
+
+  public message: Message
+}
 
 type User = {
   id: string
@@ -272,33 +299,119 @@ type Room = string
 
 export class Brain extends EventEmitter {
   public data: {
-    users: any,
+    users: {
+      [id: string]: User
+    },
+    _private: any,
   }
 
-  public set(key: string, value: any)
+  public autoSave: boolean
 
+  /**
+   * Store key-value pair under the private namespace and extend
+   * existing @data before emitting the 'loaded' event.
+   */
+  public set(key: string, value: any): Brain
+
+  /**
+   * Get value by key from the private namespace in @data
+   * or return null if not found.
+   */
   public get(key: string): any
 
-  public remove(key: string)
+  /**
+   * Remove value by key from the private namespace in @data
+   * if it exists
+   */
+  public remove(key: string): Brain
 
+  /**
+   * Emits the 'save' event so that 'brain' scripts can handle
+   * persisting.
+   */
   public save(): void
 
+  /**
+   * Emits the 'close' event so that 'brain' scripts can handle closing.
+   */
   public close(): void
 
+  /**
+   * Enable or disable the automatic saving
+   */
   public setAutoSave(enabled: boolean): void
 
+  /**
+   * Reset the interval between save function calls.
+   */
   public resetSaveInterval(seconds: number): void
 
+  /**
+   * Merge keys loaded from a DB against the in memory representation.
+   */
   public mergeData(data: any): void
 
-  public users(): any
+  /**
+   * Get an Array of User objects stored in the brain.
+   */
+  public users(): { [id: string]: User }
 
-  public userForId(id: string, options?: any): User
+  /**
+   * Get a User object given a unique identifier.
+   */
+  public userForId(id: string, options?: any): User | undefined
 
-  public userForName(name: string): User
+  /**
+   * Get a User object given a name.
+   */
+  public userForName(name: string): User | null
 
+  /**
+   * Get all users whose names match fuzzyName. Currently, match
+   * means 'starts with', but this could be extended to match initials,
+   * nicknames, etc.
+   */
   public usersForRawFuzzyName(fuzzyName: string): User[]
 
+  /**
+   * If fuzzyName is an exact match for a user, returns an array with
+   * just that user. Otherwise, returns an array of all users for which
+   * fuzzyName is a raw fuzzy match (see usersForRawFuzzyName).
+   */
   public usersForFuzzyName(fuzzyName: string): User[]
 
+}
+
+export class Listener {
+  /**
+   * Listeners receive every message from the chat source and decide if they
+   * want to act on it.
+   * An identifier should be provided in the options parameter to uniquely
+   * identify the listener (options.id). 
+   */
+  constructor(robot: Robot, matcher: (message: Message) => RegExpMatchArray | boolean, options: Metadata | ListenerFunc, callback?: ListenerFunc)
+
+  public robot: Robot
+  public matcher: (message: Message) => RegExpMatchArray | boolean
+  public options: Metadata
+  public callback: ListenerFunc
+
+  /**
+   * Determines if the listener likes the content of the message. If
+   * so, a Response built from the given Message is passed through all
+   * registered middleware and potentially the Listener callback. Note that
+   * middleware can intercept the message and prevent the callback from ever
+   * being executed.
+   */
+  public call<T>(message: Message, middleware?: Middleware<T>, cb?: (matched: boolean) => void)
+}
+
+/**
+ * TextListeners receive every message from the chat source and decide if they
+ * want to act on it.
+ */
+export class TextListener extends Listener {
+  constructor(robot: Robot, regex: RegExp, options: Metadata | ListenerFunc, callback?: ListenerFunc)
+
+  public matcher: (message: Message) => RegExpMatchArray
 }

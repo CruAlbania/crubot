@@ -1,6 +1,7 @@
 // tslint:disable:no-var-requires
 import * as chai from 'chai'
 import * as fs from 'fs'
+import { Robot } from './hubot'
 const expect = chai.expect
 
 // process.env.HUBOT_SCRIPT_ROOT = '.'
@@ -10,7 +11,7 @@ const expect = chai.expect
   // So we delete and re-require it every time.
 delete require.cache[require.resolve('hubot-test-helper')]
 const Helper = require('hubot-test-helper')
-const helper = new Helper('./help.ts')
+const helper = new Helper(['./help.ts'])
 
 describe('hubot help', () => {
 
@@ -160,6 +161,26 @@ describe('hubot help', () => {
 
     expect(room.messages.length).to.equal(2, '#messages')
     expect(room.messages[1][1]).to.contain("I couldn't find anything related to asdfqwera")
+  })
+
+
+  it('should return help message on catch all', async () => {
+
+    await wait(10) // short wait so hubot can process all the help files
+    await room.user.say('alice', 'hubot asdfqwera')
+
+    expect(room.messages.length).to.equal(2, '#messages')
+    expect(room.messages[1][1]).to.contain("Sorry, I didn't catch that.  Try `hubot help`")
+  })
+
+  it('should return related help on catch all', async () => {
+
+    await wait(10) // short wait so hubot can process all the help files
+    await room.user.say('alice', 'hubot boromir')
+
+    expect(room.messages.length).to.equal(2, '#messages')
+    expect(room.messages[1][1]).to.contain("Sorry, I didn't catch that.  Try one of these?")
+    expect(room.messages[1][1]).to.contain('hubot ONE DOES NOT SIMPLY <text> - Meme: Boromir')
   })
 })
 
