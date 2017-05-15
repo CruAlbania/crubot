@@ -183,8 +183,10 @@ export class Response {
 
   /**
    * The match array from the regex given to 'hear' or 'respond'
+   * 
+   * Normally a RegExpMatchArray but can be any value when using robot.listen
    */
-  public match?: RegExpMatchArray | boolean
+  public match?: RegExpMatchArray
 
   public envelope: {
     user: User

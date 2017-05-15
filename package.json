@@ -5,12 +5,13 @@
   "scripts": {
     "build": "gulp build",
     "lint": "tslint 'src/**/*.ts?(x)' -e '**/*.d.ts'",
-    "test": "mocha -t 5000  --compilers coffee:coffee-script,ts:ts-node/register --recursive 'src/**/*.test.ts'",
+    "test": "mocha -t 130000 -s 1000 --compilers coffee:coffee-script,ts:ts-node/register --recursive 'src/**/*.test.ts'",
     "watch": "nodemon -e js,jsx,ts,tsx,json --exec \"npm run $1\""
   },
   "author": "Gordon Burgett <gordon.burgett@cru.org>",
   "description": "Better than clippy",
   "dependencies": {
+    "broken-link-checker": "^0.7.4",
     "hubot": "git+https://github.com/CruAlbania/hubot.git",
     "hubot-diagnostics": "0.0.1",
     "hubot-gitter2": "^0.1.3",
