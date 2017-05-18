@@ -182,6 +182,17 @@ describe('hubot help', () => {
     expect(room.messages[1][1]).to.contain("Sorry, I didn't catch that.  Try one of these?")
     expect(room.messages[1][1]).to.contain('hubot ONE DOES NOT SIMPLY <text> - Meme: Boromir')
   })
+
+  it('should not run catch all if they dont say the robots name', async () => {
+
+    await wait(10) // short wait so hubot can process all the help files
+    await room.user.say('alice', 'boromir')
+    await wait(10)
+
+    expect(room.messages).to.deep.equal([
+      [ 'alice', 'boromir' ],
+    ])
+  })
 })
 
 

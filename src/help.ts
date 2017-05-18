@@ -18,7 +18,7 @@
 import * as Fs from 'fs'
 import * as Path from 'path'
 
-import { Robot, CatchAllMessage, TextMessage } from './hubot'
+import { CatchAllMessage, Robot, TextMessage } from './hubot'
 
 function script(robot: Robot) {
   const cwd = '.'
@@ -196,8 +196,12 @@ I also respond to "${robot.alias}".`
   const nameRegex = new RegExp('^' + robot.name + ' ', 'i')
   robot.catchAll((res) => {
     // strip the robot's name before doing the search
-    const msg = res.envelope.message as CatchAllMessage
-    const txtMsg = (msg.message as TextMessage).text.replace(nameRegex, '')
+    const msg = (res.envelope.message as CatchAllMessage).message as TextMessage
+    if (!nameRegex.test(msg.text)) {
+      // they didn't say the robots name
+      return
+    }
+    const txtMsg = msg.text.replace(nameRegex, '')
 
     // run a search on the unknown command
     let matches = executeSearch(txtMsg, getAllCommands(scripts))
