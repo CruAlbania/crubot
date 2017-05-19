@@ -259,6 +259,7 @@ export class OAuthListener {
             return
           }
 
+          // tslint:disable-next-line:no-console
           console.log('[gitlab] <sign in> refresh token response: ', body)
 
           token = new UserToken({

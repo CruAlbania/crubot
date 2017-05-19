@@ -21,6 +21,7 @@ module.exports = (robot: Robot) => {
 
   robot.responseMiddleware(
     (context, next, done) => {
+      // console.log(context.response.message)
       let lastMsg = ''
       let msgRepeatCount = 0
       for (const msg of previousMsgs) {

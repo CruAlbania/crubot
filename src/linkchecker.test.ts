@@ -36,7 +36,6 @@ describe('hubot link check', () => {
     server.close(done)
   })
 
-
   it('should error on bad urls', async () => {
 
     // act
@@ -361,7 +360,6 @@ describe('hubot link check', () => {
     ])
   }).timeout(2100)
 })
-
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {

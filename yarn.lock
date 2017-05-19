@@ -69,9 +69,9 @@
     "@types/express-serve-static-core" "*"
     "@types/mime" "*"
 
-"@types/sinon@^2.2.1":
-  version "2.2.1"
-  resolved "https://registry.yarnpkg.com/@types/sinon/-/sinon-2.2.1.tgz#93d8e623c3fafc08d5cddb990c4f14e8040cbbc9"
+"@types/sinon@^2.2.2":
+  version "2.2.2"
+  resolved "https://registry.yarnpkg.com/@types/sinon/-/sinon-2.2.2.tgz#a80da4868ba08accacbce4d37276f35e1ba0a52f"
 
 "@types/vinyl@*":
   version "2.0.0"
@@ -633,7 +633,7 @@ dateformat@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/dateformat/-/dateformat-2.0.0.tgz#2743e3abb5c3fc2462e527dca445e04e9f4dee17"
 
-debug@*, debug@^2.2.0:
+debug@*, debug@^2.1.1, debug@^2.2.0:
   version "2.6.3"
   resolved "https://registry.yarnpkg.com/debug/-/debug-2.6.3.tgz#0f7eb8c30965ec08c72accfa0130c8b79984141d"
   dependencies:
@@ -651,7 +651,7 @@ debug@2.6.1:
   dependencies:
     ms "0.7.2"
 
-debug@2.6.4, debug@^2.1.1:
+debug@2.6.4:
   version "2.6.4"
   resolved "https://registry.yarnpkg.com/debug/-/debug-2.6.4.tgz#7586a9b3c39741c0282ae33445c4e8ac74734fe0"
   dependencies:
@@ -3095,6 +3095,10 @@ sshpk@^1.7.0:
 "statuses@>= 1.3.1 < 2", statuses@~1.3.1:
   version "1.3.1"
   resolved "https://registry.yarnpkg.com/statuses/-/statuses-1.3.1.tgz#faf51b9eb74aaef3b3acf4ad5f61abf24cb7b93e"
+
+stopwords@^0.0.5:
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/stopwords/-/stopwords-0.0.5.tgz#59ad9dceb96ea0fa27459e1cefe0ee0e6ddfd514"
 
 stream-combiner@^0.2.1:
   version "0.2.2"

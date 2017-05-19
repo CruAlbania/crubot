@@ -1,6 +1,9 @@
 # Description:
 #   Example scripts for you to examine and try out.
 #
+# Commands:
+#   hubot open the <text> doors - opens most of the doors.
+#
 # Notes:
 #   They are commented out by default, because most of them are pretty silly and
 #   wouldn't be useful and amusing enough for day to day huboting.

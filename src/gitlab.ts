@@ -44,7 +44,6 @@ module.exports = (robot: Robot) => {
   robot.respond(/gitlab sign in/i, { id: 'gitlab.sign_in' }, oauth.signin)
   robot.respond(/gitlab sign out/i, { id: 'gitlab.sign_out' }, oauth.signout)
 
-
   robot.error((err, res) => {
     robot.logger.error('DOES NOT COMPUTE')
 

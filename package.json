@@ -28,7 +28,8 @@
     "hubot-shipit": "^0.2.0",
     "hubot-youtube": "^1.0.2",
     "leveldown": "^1.6.0",
-    "request": "^2.81.0"
+    "request": "^2.81.0",
+    "stopwords": "^0.0.5"
   },
   "engines": {
     "node": "0.10.x"
@@ -40,7 +41,7 @@
     "@types/mocha": "^2.2.41",
     "@types/node": "^7.0.18",
     "@types/request": "^0.0.43",
-    "@types/sinon": "^2.2.1",
+    "@types/sinon": "^2.2.2",
     "chai": "^3.5.0",
     "del": "^2.2.2",
     "gulp": "^3.9.1",

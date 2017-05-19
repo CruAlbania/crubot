@@ -1,7 +1,7 @@
 // tslint:disable:no-var-requires
 import * as chai from 'chai'
 import * as fs from 'fs'
-import { Robot } from './hubot'
+import { Robot } from '../hubot'
 const expect = chai.expect
 
 // process.env.HUBOT_SCRIPT_ROOT = '.'
@@ -11,9 +11,9 @@ const expect = chai.expect
   // So we delete and re-require it every time.
 delete require.cache[require.resolve('hubot-test-helper')]
 const Helper = require('hubot-test-helper')
-const helper = new Helper(['./help.ts'])
+const helper = new Helper(['./greetings.ts'])
 
-describe('hubot help', () => {
+describe('hubot greetings', () => {
 
   let room: any
 
@@ -26,39 +26,35 @@ describe('hubot help', () => {
   })
 
   it('should respond to ask hubot', async () => {
-    await wait(10) // short wait so hubot can process all the help files
-
     await room.user.say('alice', 'you should ask hubot for an answer')
 
     expect(room.messages[1][1]).contains("Hi, I'm hubot")
   })
 
-  it('should respond to "hubot help"', async () => {
-
-    await wait(1000) // short wait so hubot can process all the help files
-
-    await room.user.say('alice', 'hubot help')
+  it('should respond to "hi hubot"', async () => {
+    await room.user.say('alice', 'hi hubot')
 
     expect(room.messages.length).to.equal(2, '#messages')
-    expect(room.messages[1][1]).contains('I can do a lot of things!')
-    expect(room.messages[1][1]).contains('hubot help all')
+    expect(room.messages[1][1]).contains('Want to ask me a question?  Just type `hubot help`')
   })
 
-  it('should return help message on catch all', async () => {
-
-    await wait(1000) // short wait so hubot can process all the help files
-
-    await room.user.say('alice', 'hubot asdfqwera')
+  it('should respond to "hubot hi"', async () => {
+    await room.user.say('alice', 'hubot hi')
 
     expect(room.messages.length).to.equal(2, '#messages')
-    expect(room.messages[1][1]).to.contain("Sorry, I didn't catch that.  Try `hubot help`")
+    expect(room.messages[1][1]).contains('Want to ask me a question?  Just type `hubot help`')
   })
+
+  it('should respond to "thanks hubot"', async () => {
+    await room.user.say('alice', 'thanks hubot!')
+
+    expect(room.messages.length).to.equal(2, '#messages')
+  })
+
+  it('should respond to "hubot thanks"', async () => {
+    await room.user.say('alice', 'hubot, thanks')
+
+    expect(room.messages.length).to.equal(2, '#messages')
+  })
+
 })
-
-function wait(milliseconds: number): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    setTimeout(() => {
-      resolve()
-    }, milliseconds)
-  })
-}
