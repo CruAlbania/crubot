@@ -35,7 +35,7 @@ describe('hubot help', () => {
 
   it('should respond to "hubot help"', async () => {
 
-    await wait(1000) // short wait so hubot can process all the help files
+    await wait(10) // short wait so hubot can process all the help files
 
     await room.user.say('alice', 'hubot help')
 
@@ -46,7 +46,7 @@ describe('hubot help', () => {
 
   it('should return help message on catch all', async () => {
 
-    await wait(1000) // short wait so hubot can process all the help files
+    await wait(10) // short wait so hubot can process all the help files
 
     await room.user.say('alice', 'hubot asdfqwera')
 

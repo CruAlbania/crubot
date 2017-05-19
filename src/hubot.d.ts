@@ -313,13 +313,21 @@ export class Brain extends EventEmitter {
    * Store key-value pair under the private namespace and extend
    * existing @data before emitting the 'loaded' event.
    */
-  public set(key: string, value: any): Brain
+  public set<T>(key: string, value: T): Brain
 
   /**
    * Get value by key from the private namespace in @data
    * or return null if not found.
    */
   public get(key: string): any
+
+  /**
+   * Get value by key from the private namespace in @data
+   * or return null if not found.
+   * 
+   * The generic method is used to provide a type assertion for static checking.
+   */
+  public get<T>(key: string): T
 
   /**
    * Remove value by key from the private namespace in @data

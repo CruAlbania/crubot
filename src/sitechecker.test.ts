@@ -11,9 +11,9 @@ const expect = chai.expect
   // So we delete and re-require it every time.
 delete require.cache[require.resolve('hubot-test-helper')]
 const Helper = require('hubot-test-helper')
-const helper = new Helper(['./linkchecker.ts'])
+const helper = new Helper(['./sitechecker.ts'])
 
-describe('hubot link check', () => {
+describe('hubot check links', () => {
 
   let longRunning: any = it.skip
   if (process.env.LONG_RUNNING) {
@@ -39,40 +39,64 @@ describe('hubot link check', () => {
   it('should error on bad urls', async () => {
 
     // act
-    await room.user.say('alice', 'hubot link check .')
-    await room.user.say('alice', 'hubot link check /')
-    await room.user.say('alice', 'hubot link check |')
-    await room.user.say('alice', 'hubot link check :')
-    await room.user.say('alice', 'hubot link check your mom')
+    await room.user.say('alice', 'hubot check links .')
+    await room.user.say('alice', 'hubot check links /')
+    await room.user.say('alice', 'hubot check links |')
+    await room.user.say('alice', 'hubot check links :')
+    await room.user.say('alice', 'hubot check links your mom')
     await wait(10)
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check .' ],
+      [ 'alice', 'hubot check links .' ],
       [ 'hubot', "Sorry, I can't figure out how to check `.`.  Are you sure it's a URL?" ],
-      [ 'alice', 'hubot link check /' ],
+      [ 'alice', 'hubot check links /' ],
       [ 'hubot', "Sorry, I can't figure out how to check `/`.  Are you sure it's a URL?" ],
-      [ 'alice', 'hubot link check |' ],
+      [ 'alice', 'hubot check links |' ],
       [ 'hubot', "Sorry, I can't figure out how to check `|`.  Are you sure it's a URL?" ],
-      [ 'alice', 'hubot link check :' ],
+      [ 'alice', 'hubot check links :' ],
       [ 'hubot', "Sorry, I can't figure out how to check `:`.  Are you sure it's a URL?" ],
-      [ 'alice', 'hubot link check your mom' ],
+      [ 'alice', 'hubot check links your mom' ],
       [ 'hubot', "Sorry, I can't figure out how to check `your mom`.  Are you sure it's a URL?" ],
+    ])
+  })
+
+  it('should not run the link check two times simultaneously', async () => {
+    app.get('/', (req, res) => {
+      setTimeout(() =>
+        res.send('<html><body><h1>Hello World!</h1></body></html>')
+      , 10)
+    })
+
+    // act
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
+    await wait(10)
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
+    await wait(50)
+
+    // assert
+    expect(room.messages).to.deep.equal([
+      [ 'alice', 'hubot check links http://localhost:8081' ],
+      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
+      [ 'alice', 'hubot check links http://localhost:8081' ],
+      [ 'hubot', "I'm already checking that URL.  I'll let you know when I'm finished." ],
+      [ 'hubot', 'Finished checking http://localhost:8081/: 0 broken links (0 total links)' ],
     ])
   })
 
   it('should show error result for unreachable host', async () => {
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:9999')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
+    const p = new Promise((resolve, reject) => {
+      room.robot.on('link-check.error', (err) => resolve())
     })
+    await room.user.say('alice', 'hubot check links http://localhost:9999')
+    await p
     await wait(10)
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:9999' ],
+      [ 'alice', 'hubot check links http://localhost:9999' ],
       [ 'hubot', 'BRB, checking http://localhost:9999/ for broken links...' ],
       [ 'hubot', 'Got an error when checking http://localhost:9999/:  \n\n> The connection to 127.0.0.1:9999 was refused' ],
 
@@ -82,7 +106,7 @@ describe('hubot link check', () => {
   it('should show error result for bad domain', async () => {
 
     // act
-    await room.user.say('alice', 'hubot link check http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz')
+    await room.user.say('alice', 'hubot check links http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
@@ -90,7 +114,7 @@ describe('hubot link check', () => {
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz' ],
+      [ 'alice', 'hubot check links http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz' ],
       [ 'hubot', 'BRB, checking http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz/ for broken links...' ],
       [ 'hubot', 'Got an error when checking http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz/:  \n\n> The hostname afsdlkqjewlkrjqkvnq23rjakjsdf.zzz could not be resolved' ],
     ])
@@ -99,7 +123,7 @@ describe('hubot link check', () => {
   it('should handle 404', async () => {
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:8081/asdfqkjwelrkjr')
+    await room.user.say('alice', 'hubot check links http://localhost:8081/asdfqkjwelrkjr')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
@@ -107,7 +131,7 @@ describe('hubot link check', () => {
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:8081/asdfqkjwelrkjr' ],
+      [ 'alice', 'hubot check links http://localhost:8081/asdfqkjwelrkjr' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/asdfqkjwelrkjr for broken links...' ],
       [ 'hubot', 'Got an error when checking http://localhost:8081/asdfqkjwelrkjr:  \n\n> 404: Not Found' ],
     ])
@@ -119,7 +143,7 @@ describe('hubot link check', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:8081')
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
@@ -127,7 +151,7 @@ describe('hubot link check', () => {
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:8081' ],
+      [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
       [ 'hubot', 'Finished checking http://localhost:8081/: 0 broken links (0 total links)' ],
     ])
@@ -145,7 +169,7 @@ describe('hubot link check', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:8081')
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
@@ -153,7 +177,7 @@ describe('hubot link check', () => {
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:8081' ],
+      [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
       [ 'hubot', 'Finished checking http://localhost:8081/: 0 broken links (1 total links)' ],
     ])
@@ -167,7 +191,7 @@ describe('hubot link check', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:8081')
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
@@ -175,7 +199,7 @@ describe('hubot link check', () => {
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:8081' ],
+      [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
       [ 'hubot', 'Finished checking http://localhost:8081/: 1 broken links (1 total links)  \n:x: http://localhost:8081/badlink Not Found (404)' ],
     ])
@@ -189,7 +213,7 @@ describe('hubot link check', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:8081')
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
@@ -197,7 +221,7 @@ describe('hubot link check', () => {
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:8081' ],
+      [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
       [ 'hubot', 'Finished checking http://localhost:8081/: 1 broken links (1 total links)  \n:x: http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz/ no matching dns record (ENOTFOUND)' ],
     ])
@@ -211,7 +235,7 @@ describe('hubot link check', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:8081')
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
@@ -219,7 +243,7 @@ describe('hubot link check', () => {
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:8081' ],
+      [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
       [ 'hubot', 'Finished checking http://localhost:8081/: 1 broken links (1 total links)  \n:x: http://localhost:9999/ connection refused (ECONNREFUSED)' ],
     ])
@@ -232,7 +256,7 @@ describe('hubot link check', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:8081')
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
@@ -240,7 +264,7 @@ describe('hubot link check', () => {
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:8081' ],
+      [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
       [ 'hubot', 'Got an error when checking http://localhost:8081/:  \n\n> 500: Internal Server Error' ],
     ])
@@ -258,7 +282,7 @@ describe('hubot link check', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:8081')
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
@@ -266,7 +290,7 @@ describe('hubot link check', () => {
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:8081' ],
+      [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
       [ 'hubot', 'Finished checking http://localhost:8081/: 1 broken links (1 total links)  \n:exclamation: http://localhost:8081/link500 Internal Server Error (500)' ],
     ])
@@ -281,7 +305,7 @@ describe('hubot link check', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:8081')
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
@@ -289,7 +313,7 @@ describe('hubot link check', () => {
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:8081' ],
+      [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
       [ 'hubot', 'Got an error when checking http://localhost:8081/:  \n\n> Error: socket hang up' ],
     ])
@@ -309,7 +333,7 @@ describe('hubot link check', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:8081')
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
@@ -317,7 +341,7 @@ describe('hubot link check', () => {
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:8081' ],
+      [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
       [ 'hubot', 'Finished checking http://localhost:8081/: 1 broken links (1 total links)  \n:x: http://localhost:8081/linktimeout connection reset by peer (ECONNRESET)' ],
     ])
@@ -346,17 +370,17 @@ describe('hubot link check', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot link check http://localhost:8081')
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
     await new Promise((resolve, reject) => {
       room.robot.on('link-check.end', (urls) => resolve())
     })
-    await wait(10)
+    await wait(20)
 
     // assert
     expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot link check http://localhost:8081' ],
+      [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Timed out checking http://localhost:8081/ after 1 seconds: 1 broken links (2 total links)  \n:x: http://localhost:8081/badlink Not Found (404)' ],
+      [ 'hubot', 'Timed out checking http://localhost:8081/: 1 broken links (2 total links)  \n:x: http://localhost:8081/badlink Not Found (404)' ],
     ])
   }).timeout(2100)
 })
