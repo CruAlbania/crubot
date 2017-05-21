@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Root on Digital Strategies - Albania</title>
+    <link>https://localhost:8081/index.xml</link>
+    <description>Recent content in Root on Digital Strategies - Albania</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <copyright>This web page is Copyright CRU, 2017</copyright>
+    <lastBuildDate>Mon, 03 Apr 2017 18:49:06 +0200</lastBuildDate>
+    <atom:link href="/rss.xml" rel="self" type="application/rss+xml" />
+    
+    
+    
+    <item>
+      <title>Why use Git?</title>
+      <link>https://localhost:8081/post/2017-04-22_why_use_git/</link>
+      <pubDate>Sat, 22 Apr 2017 18:53:41 +0200</pubDate>
+      
+      <guid>https://localhost:8081/post/2017-04-22_why_use_git/</guid>
+      <description>
+
+&lt;h1 id=&#34;what-s-the-deal-with-git&#34;&gt;What&amp;rsquo;s the deal with Git?&lt;/h1&gt;
+
+&lt;p&gt;Have you ever had to collaborate with multiple people on a word document?  You know how ridiculous it can look when you turn on track changes:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&#34;https://localhost:8081/images/post/2017-04-22_why_use_git/word_track_changes.jpg&#34; alt=&#34;Sample word doc with track changes&#34; /&gt;&lt;/p&gt;
+
+&lt;p&gt;It gets even worse when multiple people have sent you their revisions over email attachments, and you have to somehow merge the document together.  We...</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>Hosting a PHP application</title>
+      <link>https://localhost:8081/post/2017-04-18_hosting_php_server_tutorial/</link>
+      <pubDate>Tue, 18 Apr 2017 14:00:00 +0200</pubDate>
+      
+      <guid>https://localhost:8081/post/2017-04-18_hosting_php_server_tutorial/</guid>
+      <description>
+
+&lt;h2 id=&#34;how-to-host-a-php-application-like-hapitjeter&#34;&gt;How to host a PHP application like Hapitjeter&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&#34;https://localhost:8081/projects/hapitjeter/&#34;&gt;HapiTjeter&lt;/a&gt; is a standard PHP application that runs on the internet.  In this tutorial I&amp;rsquo;ll show you how to use a public hosting service to install your own version of HapiTjeter, or any other PHP application.  We&amp;rsquo;ll go through the steps all the way from downloading the code, through configuring your MySQL database, and finally setting up ...</description>
+    </item>
+    
+    
+    
+    <item>
+      <title>What is this blog?</title>
+      <link>https://localhost:8081/post/2017-04-08_what_is_the_blog/</link>
+      <pubDate>Sat, 08 Apr 2017 15:39:47 +0200</pubDate>
+      
+      <guid>https://localhost:8081/post/2017-04-08_what_is_the_blog/</guid>
+      <description>
+
+&lt;h2 id=&#34;what-is-this-blog&#34;&gt;What is this blog?&lt;/h2&gt;
+
+&lt;p&gt;This blog is where Cru Digital Strategies Albania will talk about the various projects that we&amp;rsquo;re working on, who is working on them, and how you can get involved.  The purpose is to get more people excited about sharing code and getting involved.&lt;/p&gt;
+
+&lt;h2 id=&#34;who-s-it-for&#34;&gt;Who&amp;rsquo;s it for?&lt;/h2&gt;
+
+&lt;p&gt;Anyone who has a passion for digital content and wants to reach people for Christ through digital media!  We welcome any and all help...</description>
+    </item>
+    
+    
+    
+  </channel>
+</rss>
