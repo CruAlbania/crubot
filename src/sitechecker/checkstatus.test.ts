@@ -120,13 +120,13 @@ describe('hubot sitechecker check status', () => {
     expect(result.brokenSince).to.equal(17, 'brokenSince')
   })
 
-  it('should overwrite brokenSince if it is fixed', async () => {
+  it('should keep old brokenSince when it is fixed', async () => {
     app.get('/asdlkfjq', (req, resp) => resp.send('fixed'))
 
     const brain = { set: () => undefined, get: () => undefined }
     const Mbrain = sinon.mock(brain)
     Mbrain.expects('get').withArgs('sitechecker.status.http://localhost:8081/asdlkfjq').returns({
-      timestamp: 17,
+      timestamp: 55,
       brokenSince: 17,
       error: '404 (Not Found)',
       url: url.parse('http://localhost:8081/asdlkfjq'),
@@ -139,7 +139,7 @@ describe('hubot sitechecker check status', () => {
 
     // assert
     expect(result.timestamp).to.be.approximately(Date.now(), 100, 'timestamp')
-    expect(result.brokenSince).to.equal(0, 'brokenSince')
+    expect(result.brokenSince).to.equal(17, 'brokenSince')
     expect(result.error).to.be.undefined
   })
 })

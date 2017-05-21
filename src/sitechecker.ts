@@ -8,9 +8,11 @@
 //   HUBOT_LINK_CHECKER_EXCLUDED_KEYWORDS: a space-separated set of globs to ignore.  Default: "tracking" (see https://github.com/stevenvachon/broken-link-checker#optionsexcludedkeywords)
 //   HUBOT_LINK_CHECKER_TIMEOUT_SECONDS: The number of seconds before a site scan ends in timeout.  Default: 30 minutes.
 //   HUBOT_LINK_CHECKER_COOLDOWN_SECONDS: The number of seconds before a site scan can be tried again.  Default: 1 hour.
+//   HUBOT_SITE_CHECK_MIN_SCHEDULE_SECONDS: The minimum period for status checking any particular site.  Default: 5 minutes.
 //
 // Commands:
 //   hubot check links <url> - Crawl the given URL recursively for broken links
+//   hubot check <url> on schedule <schedule> - Automatically run a status check against the given URL on the schedule specified by the cron expression.
 //
 // Notes:
 //
@@ -19,20 +21,34 @@
 //   gburgett
 
 import * as blc from 'broken-link-checker'
+import { CronTime } from 'cron'
 import * as Fs from 'fs'
+import * as moment from 'moment'
 import * as Path from 'path'
 import * as url from 'url'
 
 import { Response, Robot } from './hubot'
 import { CheckLinks, StatusCode } from './sitechecker/checklinks'
+import {StatusChecker} from './sitechecker/checkstatus'
 import { History } from './sitechecker/history'
+import { Scheduler } from './sitechecker/scheduler'
 
 module.exports = (robot: Robot) => {
 
   const LINK_CHECKER_COOLDOWN_SECONDS = process.env.HUBOT_LINK_CHECKER_COOLDOWN_SECONDS || (60 * 60)   // 1 hour default
+  const SITE_CHECK_MIN_SCHEDULE_SECONDS = process.env.HUBOT_SITE_CHECK_MIN_SCHEDULE_SECONDS || (5 * 60)   // 5 min default
 
+    // status check
+  const statusChecker = new StatusChecker(robot.brain)
+
+    // link check
   const history = new History(robot.brain)
   const current = new Map<string, number>()
+
+    // scheduler
+  const scheduler = new Scheduler(robot.brain, new Map([
+    ['status', statusCheckService],
+  ]))
 
   /*robot.on('link-check.error', (arg: url.Url) => {
     robot.logger.error('Link Checker error for ', arg)
@@ -140,8 +156,69 @@ module.exports = (robot: Robot) => {
   })
 
   robot.respond(/check\s+(.+)\s+on\s+schedule\s+(.+)$/i, (res) => {
-    res.send('Sorry, I cant do this yet')
+    let arg: url.Url
+    try {
+      arg = validateUrl(res.match[1])
+      if (!arg) {
+        res.send(`Sorry, I can't figure out how to check \`${res.match[1]}\`.  Are you sure it's a URL?`)
+        return
+      }
+    } catch (e) {
+      robot.logger.info('RL parse error for', res.match[1], ':', e)
+      res.send(`Sorry, I can't figure out how to check \`${res.match[1]}\`.  Are you sure it's a URL?`)
+      return
+    }
+
+    const schedule = res.match[2].trim()
+    const minDuration = moment.duration(SITE_CHECK_MIN_SCHEDULE_SECONDS, 'seconds')
+    try {
+      const time = new CronTime(schedule) as any
+      const next2: moment.Moment[] = time.sendAt(2)
+      const diff = next2[1].diff(next2[0])    // difference in milliseconds
+      if (diff < minDuration.asMilliseconds()) {
+        res.send(`Sorry, I can't check a site's status more often than once in ${minDuration.humanize()}.`)
+        return
+      }
+    } catch (error) {
+      res.send('Sorry, `' + schedule + '` is not a valid cron syntax schedule.  Take a look at https://en.wikipedia.org/wiki/Cron')
+      return
+    }
+
+    const context: IStatusCheckContext = {
+      site: arg,
+      rooms: [res.envelope.room],
+    }
+    const jobId = scheduler.StartJob(schedule, 'status', context)
+    res.send(`Ok, I'll start checking ${url.format(arg)} on the schedule \`${schedule}\``)
   })
+
+  interface IStatusCheckContext {
+    site: url.Url
+    rooms: string[]
+  }
+
+  function statusCheckService(context: IStatusCheckContext) {
+    statusChecker.CheckStatus(context.site)
+      .then((result) => {
+        if (result.error) {
+          if (result.brokenSince === result.timestamp) {
+            // it's newly broken - say something
+            context.rooms.forEach((r) => {
+              robot.messageRoom(r, `:fire: ${url.format(context.site)} is down!  \n  ${result.error}`)
+            })
+          }
+          // we've already notified - wait till it gets fixed.
+        } else {
+          if (result.brokenSince !== 0) {
+            // it's fixed, but it was broken before.
+            const howLong = moment.duration(result.brokenSince).humanize()
+            context.rooms.forEach((r) => {
+              robot.messageRoom(r, `:white_check_mark: ${url.format(context.site)} is OK!  \n  It was down for ${howLong}.`)
+            })
+          }
+        }
+      })
+  }
 }
 
 const codes = {
@@ -182,4 +259,27 @@ function validateUrl(arg: string): url.Url {
   }
 
   return u
+}
+
+function validateCronSchedule(cronSchedule: string, minSeconds?: number): string {
+  try {
+    const time = new CronTime(cronSchedule) as any
+    if (!minSeconds) {
+      // valid cron time
+      return undefined
+    }
+
+    const next2: moment.Moment[] = time.sendAt(2)
+    const diff = next2[1].diff(next2[0])    // difference in milliseconds
+    const minMs = (minSeconds * 1000)
+    if (diff < minMs) {
+
+      return `Sorry, this can't be scheduled more often than once in ${moment.duration(minMs).humanize()}.`
+    }
+
+    // valid schedule
+    return undefined
+  } catch (error) {
+    return cronSchedule + ' is not a valid cron syntax string.  Take a look at https://en.wikipedia.org/wiki/Cron'
+  }
 }

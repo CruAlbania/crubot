@@ -8,7 +8,9 @@ interface ICheckStatusResult {
   url: url.Url,
   error?: string,
 
-  /** If not broken, this is zero. */
+  /**
+   * If it was broken last time, this is the timestamp when it started being broken.
+   */
   brokenSince: number
 }
 
@@ -49,37 +51,27 @@ export class StatusChecker {
     const argPretty = url.format(arg)
     const last = this.brain.get<ICheckStatusResult>('sitechecker.status.' + argPretty)
 
-    if (!last) {
-      // brand new
-      const ret: ICheckStatusResult = {
-        timestamp: Date.now(),
-        url: arg,
-
-        brokenSince: 0,
-      }
-      if (isBroken(resp.statusCode)) {
-        ret.error = `${resp.statusCode} (${resp.statusMessage})`
-        ret.brokenSince = Date.now()
-      }
-
-      this.brain.set<ICheckStatusResult>('sitechecker.status.' + argPretty, ret)
-      return ret
-    }
-
     const ret: ICheckStatusResult = {
       timestamp: Date.now(),
       url: arg,
 
       brokenSince: 0,
     }
+
     if (isBroken(resp.statusCode)) {
       ret.error = `${resp.statusCode} (${resp.statusMessage})`
-      if (last.brokenSince > 0) {
-        // still broken
-        ret.brokenSince = last.brokenSince
-      } else {
-        // newly broken
+
+      if (!last || !last.error) {
+        // it's newly broken
         ret.brokenSince = Date.now()
+      } else {
+        // it was broken last time too.
+        ret.brokenSince = last.brokenSince
+      }
+    } else {
+      // it's fixed - but if it was broken last time we need to maintain the brokenSince.
+      if (last && last.error) {
+        ret.brokenSince = last.brokenSince
       }
     }
 
@@ -91,33 +83,20 @@ export class StatusChecker {
     const argPretty = url.format(arg)
     const last = this.brain.get<ICheckStatusResult>('sitechecker.status.' + argPretty)
 
-    if (!last) {
-      // brand new
-      const ret: ICheckStatusResult = {
-        error: error.message || error,
-        timestamp: Date.now(),
-        url: arg,
-
-        brokenSince: Date.now(),
-      }
-
-      this.brain.set<ICheckStatusResult>('sitechecker.status.' + argPretty, ret)
-      return ret
-    }
-
     const ret: ICheckStatusResult = {
-      error:  error.message || error,
+      error: error.message || error,
       timestamp: Date.now(),
       url: arg,
 
-      brokenSince: 0,
+      brokenSince: Date.now(),
     }
-    if (last.brokenSince > 0) {
-      // still broken
-      ret.brokenSince = last.brokenSince
-    } else {
-      // newly broken
+
+    if (!last || !last.error) {
+      // it's newly broken
       ret.brokenSince = Date.now()
+    } else {
+      // it was broken last time too.
+      ret.brokenSince = last.brokenSince
     }
 
     this.brain.set<ICheckStatusResult>('sitechecker.status.' + argPretty, ret)
