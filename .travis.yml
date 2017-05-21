@@ -16,6 +16,11 @@ language: node_js
 node_js:
   - "7"
 
+sudo: required
+
+services:
+  - docker
+
 cache: yarn
 
 after_success:
