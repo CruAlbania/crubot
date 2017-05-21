@@ -21,8 +21,6 @@ sudo: required
 services:
   - docker
 
-cache: yarn
-
 after_success:
   - rm -r node_modules
   - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS

@@ -10,13 +10,16 @@ import {Response, Robot} from './hubot'
   // So we delete and re-require it every time.
 delete require.cache[require.resolve('hubot-test-helper')]
 const Helper = require('hubot-test-helper')
-const helper = new Helper(['./preventGitterBan.ts', '../node_modules/hubot-diagnostics/src/diagnostics.coffee'])
+const helper = new Helper(['./preventGitterBan.ts'])
 
 describe('preventGitterBan', () => {
   let room: any
 
   beforeEach(() => {
     room = helper.createRoom()
+    room.robot.respond(/echo\s+(.+)/i, (res: Response) => {
+      res.send(res.match[1])
+    })
   })
 
   afterEach(() => {
