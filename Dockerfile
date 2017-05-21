@@ -13,7 +13,7 @@ VOLUME /data/crubot/leveldb
 # add files
 ADD . /root/crubot
 WORKDIR /root/crubot
-RUN yarn install --verbose && node_modules/.bin/gulp build
+RUN yarn install && node_modules/.bin/gulp build
 
 ENTRYPOINT ["/root/crubot/bin/hubot"]
 
