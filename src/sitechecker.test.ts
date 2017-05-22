@@ -14,7 +14,7 @@ delete require.cache[require.resolve('hubot-test-helper')]
 const Helper = require('hubot-test-helper')
 const helper = new Helper(['./sitechecker.ts'])
 
-describe('hubot check site', () => {
+describe('hubot sitechecker', () => {
 
   let longRunning: any = it.skip
   if (process.env.LONG_RUNNING) {
@@ -85,7 +85,7 @@ describe('hubot check site', () => {
         [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
         [ 'alice', 'hubot check links http://localhost:8081' ],
         [ 'hubot', "I'm already checking that URL.  I'll let you know when I'm finished." ],
-        [ 'hubot', 'Finished checking http://localhost:8081/: 0 broken links (0 total links)' ],
+        [ 'hubot', 'Finished checking 0 total links at http://localhost:8081/:  \n0 broken links' ],
       ])
     })
   })

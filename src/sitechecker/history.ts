@@ -39,7 +39,9 @@ export class History {
     if (!prev) {
       // no diff to do.  Just set the history.
       const withHistory: ILinkCheckSummaryWithHistory = {
+        start: summary.start,
         timestamp: summary.timestamp,
+        status: summary.status,
         url: summary.url,
         linksChecked: new Map(summary.linksChecked),
         brokenLinks: summary.brokenLinks.map<IBrokenLinkWithHistory>((l) => Object.assign({ lastSuccess: 0}, l)),
@@ -120,7 +122,9 @@ function internalDiff(summary: ILinkCheckSummary, prev: IHistoryTuple): IHistory
     newlyFixedLinks: [],
   }
   const summaryWithHistory: ILinkCheckSummaryWithHistory = {
+    start: summary.start,
     timestamp: summary.timestamp,
+    status: summary.status,
     url: summary.url,
     linksChecked: new Map(summary.linksChecked),
     brokenLinks: [],

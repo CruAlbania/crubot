@@ -8,8 +8,12 @@ import { Response, Robot } from '../hubot'
  * The results of running link checker against a website
  */
 export interface ILinkCheckSummary {
+  /** The timestamp when the link check started */
+  start: number
   /** The timestamp when the link check finished */
   timestamp: number
+  /** The status of this run of the link checker - error, timeout, success */
+  status: StatusCode
   /** The URL that started the check */
   url: url.Url
   /** The links that have been checked */
@@ -30,13 +34,16 @@ export interface IBrokenLink {
   /** The http status code (if http response returned) */
   statusCode: number,
   /** The http status message (if http response returned) */
-  statusMessage: string
+  statusMessage: string,
+  /** The webpage from which this URL was linked */
+  from: string
 }
 
 /**
  * Indicates the result of a link check against a site
  */
 export enum StatusCode {
+  unfinished = 0,
   /** The link check resulted in an error */
   error = 1,
   /** The link check timed out */
@@ -45,7 +52,7 @@ export enum StatusCode {
   success = 3,
 }
 
-type CheckLinksCallback = (error: Error, status: StatusCode, summary: ILinkCheckSummary) => void
+type CheckLinksCallback = (error: Error, summary: ILinkCheckSummary) => void
 
 /**
  * Recursively crawls a website for broken links using 'broken-link-checker'
@@ -56,7 +63,9 @@ type CheckLinksCallback = (error: Error, status: StatusCode, summary: ILinkCheck
  */
 export function CheckLinks(robot: Robot, arg: url.Url, cb: CheckLinksCallback) {
   const summary: ILinkCheckSummary = {
-    timestamp: Date.now(),
+    start: Date.now(),
+    timestamp: 0,
+    status: 0,
     url: arg,
     linksChecked: new Map<string, boolean>(),
     brokenLinks: [] as IBrokenLink[],
@@ -79,6 +88,7 @@ export function CheckLinks(robot: Robot, arg: url.Url, cb: CheckLinksCallback) {
           summary.brokenLinks.push({
             url: result.url.resolved,
             reason: result.brokenReason,
+            from: result.base.resolved,
             statusCode: result.http.response ? result.http.response.statusCode : '',
             statusMessage: result.http.response ? result.http.response.statusMessage : '',
           })
@@ -91,12 +101,16 @@ export function CheckLinks(robot: Robot, arg: url.Url, cb: CheckLinksCallback) {
       if (error) {
         robot.emit('link-check.error', error, summary)
         summary.timestamp = Date.now()
-        cb(error, StatusCode.error, summary)
+        summary.status = StatusCode.error
+        cb(error, summary)
         return
       }
 
+      if (summary.status === StatusCode.unfinished) {   // if we didnt already finish with an error
+        summary.status = StatusCode.success
+      }
       summary.timestamp = Date.now()
-      cb(undefined, StatusCode.success, summary)
+      cb(undefined, summary)
     },
   })
 
@@ -109,11 +123,17 @@ export function CheckLinks(robot: Robot, arg: url.Url, cb: CheckLinksCallback) {
   try {
     const idOrError = sitechecker.enqueue(url.format(arg))
     if (idOrError instanceof Error) {
+      summary.timestamp = Date.now()
+      summary.status = StatusCode.error
       robot.emit('link-check.error', idOrError, summary)
+      cb(idOrError, summary)
       robot.emit('link-check.end', summary)
     }
   } catch (e) {
+    summary.timestamp = Date.now()
+    summary.status = StatusCode.error
     robot.emit('link-check.error', e, summary)
+    cb(e, summary)
     robot.emit('link-check.end', summary)
   }
 
@@ -126,16 +146,17 @@ export function CheckLinks(robot: Robot, arg: url.Url, cb: CheckLinksCallback) {
     () => {
       sitechecker.pause()
       summary.timestamp = Date.now()
+      summary.status = StatusCode.timeout
       robot.emit('link-check.timeout', summary)
+      cb(new Error('timeout'), summary)
       robot.emit('link-check.end', summary)
-      cb(new Error('timeout'), StatusCode.timeout, summary)
     },
     timeoutSeconds * 1000,
   )
 
   // listen for the end event
   sitechecker.handlers.end = () => {
-    process.removeListener('unhandledRejection', listener)
+    process.removeListener('unhandledRejection', listener)    // remove unhandled rejection listener for this context
     clearTimeout(timeout)
     summary.timestamp = Date.now()
     robot.emit('link-check.end', summary)
@@ -145,8 +166,10 @@ export function CheckLinks(robot: Robot, arg: url.Url, cb: CheckLinksCallback) {
 function unhandledRejectionListener(robot: Robot, summary: ILinkCheckSummary, cb: CheckLinksCallback): (e: any) => void {
   return (error) => {
     robot.logger.error('unhandledRejection', error)
+    summary.timestamp = Date.now()
+    summary.status = StatusCode.error
     robot.emit('link-check.error', error, summary)
+    cb(error, summary)
     robot.emit('link-check.end', summary)
-    cb(error, StatusCode.error, summary)
   }
 }

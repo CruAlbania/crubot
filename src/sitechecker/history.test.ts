@@ -6,6 +6,7 @@ import * as sinon from 'sinon'
 import * as url from 'url'
 const expect = chai.expect
 
+import {StatusCode} from './checklinks'
 import { History } from './history'
 
 describe('sitechecker history', () => {
@@ -34,10 +35,12 @@ describe('sitechecker history', () => {
 
     // act
     const diff = uut.store({
-      timestamp: 1,
+      timestamp: 2,
+      start: 1,
+      status: StatusCode.success,
       url: url.parse('http://a.com'),
       brokenLinks: [
-        { url: 'http://b.com/', reason: '404', statusCode: 404, statusMessage: 'not found' },
+        { url: 'http://b.com/', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found' },
       ],
       linksChecked: new Map<string, boolean>([
         ['http://a.com/', true],
@@ -58,7 +61,7 @@ describe('sitechecker history', () => {
         timestamp: 1,
         url: url.parse('http://a.com'),
         brokenLinks: [
-          { url: 'http://b.com/', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 0 },
+          { url: 'http://b.com/', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 0 },
         ],
         linksChecked: new Map<string, boolean>([
           ['http://a.com/', true],
@@ -73,10 +76,12 @@ describe('sitechecker history', () => {
     Mbrain.expects('set').calledWith('sitechecker.history.http://a.com/', {
       summary: {
         timestamp: 2,
+        start: 1,
+        status: StatusCode.success,
         url: url.parse('http://a.com'),
         brokenLinks: [
-          { url: 'http://b.com/', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 0 },
-          { url: 'http://a.com/broken', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 },
+          { url: 'http://b.com/', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 0 },
+          { url: 'http://a.com/broken', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 },
         ],
         linksChecked: new Map<string, boolean>([
           ['http://a.com/', true],
@@ -100,10 +105,12 @@ describe('sitechecker history', () => {
     // act
     const diff = uut.store({
       timestamp: 2,
+      start: 1,
+      status: StatusCode.success,
       url: url.parse('http://a.com'),
       brokenLinks: [
-        { url: 'http://b.com/', reason: '404', statusCode: 404, statusMessage: 'not found' },
-        { url: 'http://a.com/broken', reason: '404', statusCode: 404, statusMessage: 'not found' },
+        { url: 'http://b.com/', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found' },
+        { url: 'http://a.com/broken', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found' },
       ],
       linksChecked: new Map<string, boolean>([
         ['http://a.com/', true],
@@ -119,7 +126,7 @@ describe('sitechecker history', () => {
         lastCheck: 1,
         newLinks: [],
         newlyBrokenLinks: [
-          { url: 'http://a.com/broken', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 },
+          { url: 'http://a.com/broken', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 },
         ],
         newlyFixedLinks: [],
       })
@@ -187,9 +194,11 @@ describe('sitechecker history', () => {
     // act
     const diff = uut.diff({
       timestamp: 2,
+      start: 1,
+      status: StatusCode.success,
       url: url.parse('http://a.com'),
       brokenLinks: [
-        { url: 'http://b.com/', reason: '404', statusCode: 404, statusMessage: 'not found' },
+        { url: 'http://b.com/', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found' },
       ],
       linksChecked: new Map<string, boolean>([
           ['http://a.com/', true],
@@ -214,9 +223,11 @@ describe('sitechecker history', () => {
     const data = {
       summary: {
         timestamp: 1,
+        start: 0,
+        status: StatusCode.success,
         url: url.parse('http://a.com'),
         brokenLinks: [
-          { url: 'http://b.com/', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 0 },
+          { url: 'http://b.com/', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 0 },
         ],
         linksChecked: new Map<string, boolean>([
           ['http://a.com/', true],
@@ -233,10 +244,12 @@ describe('sitechecker history', () => {
     // act
     const diff = uut.diff({
       timestamp: 2,
+      start: 1,
+      status: StatusCode.success,
       url: url.parse('http://a.com'),
       brokenLinks: [
-        { url: 'http://a.com/broken', reason: '404', statusCode: 404, statusMessage: 'not found' },   // newly broken http://a.com/broken
-        { url: 'http://b.com/', reason: '404', statusCode: 404, statusMessage: 'not found' },
+        { url: 'http://a.com/broken', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found' },   // newly broken http://a.com/broken
+        { url: 'http://b.com/', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found' },
       ],
       linksChecked: new Map<string, boolean>([
           ['http://a.com/', true],
@@ -250,7 +263,7 @@ describe('sitechecker history', () => {
         now: 2,
         lastCheck: 1,
         newLinks: [],
-        newlyBrokenLinks: [{ url: 'http://a.com/broken', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 }],
+        newlyBrokenLinks: [{ url: 'http://a.com/broken', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 }],
         newlyFixedLinks: [],
       })
   })
@@ -261,6 +274,8 @@ describe('sitechecker history', () => {
     const data = {
       summary: {
         timestamp: 1,
+        start: 0,
+        status: StatusCode.success,
         url: url.parse('http://a.com'),
         brokenLinks: [
           { url: 'http://b.com/', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 0 },
@@ -280,10 +295,12 @@ describe('sitechecker history', () => {
     // act
     const diff = uut.diff({
       timestamp: 2,
+      start: 1,
+      status: StatusCode.success,
       url: url.parse('http://a.com'),
       brokenLinks: [
-        { url: 'http://a.com/broken', reason: '404', statusCode: 404, statusMessage: 'not found' },   // newly broken http://a.com/broken
-        { url: 'http://b.com/', reason: '404', statusCode: 404, statusMessage: 'not found' },
+        { url: 'http://a.com/broken', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found' },   // newly broken http://a.com/broken
+        { url: 'http://b.com/', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found' },
       ],
       linksChecked: new Map<string, boolean>([
           ['http://a.com/', true],
@@ -297,7 +314,7 @@ describe('sitechecker history', () => {
         now: 2,
         lastCheck: 1,
         newLinks: ['http://a.com/broken'],
-        newlyBrokenLinks: [{ url: 'http://a.com/broken', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 }],
+        newlyBrokenLinks: [{ url: 'http://a.com/broken', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 }],
         newlyFixedLinks: [],
       })
   })
@@ -308,9 +325,11 @@ describe('sitechecker history', () => {
     const data = {
       summary: {
         timestamp: 2,
+        start: 1,
+        status: StatusCode.success,
         url: url.parse('http://a.com'),
         brokenLinks: [
-          { url: 'http://b.com/', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 },
+          { url: 'http://b.com/', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 },
         ],
         linksChecked: new Map<string, boolean>([
           ['http://a.com/', true],
@@ -327,6 +346,8 @@ describe('sitechecker history', () => {
     // act
     const diff = uut.diff({
       timestamp: 3,
+      start: 2,
+      status: StatusCode.success,
       url: url.parse('http://a.com'),
       brokenLinks: [],                              // fixed http://b.com/
       linksChecked: new Map<string, boolean>([
@@ -342,7 +363,7 @@ describe('sitechecker history', () => {
         lastCheck: 2,
         newLinks: [],
         newlyBrokenLinks: [],
-        newlyFixedLinks: [{ url: 'http://b.com/', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 }],
+        newlyFixedLinks: [{ url: 'http://b.com/', from: 'http://a.com', reason: '404', statusCode: 404, statusMessage: 'not found', lastSuccess: 1 }],
       })
   })
 })

@@ -28,7 +28,7 @@ import * as Path from 'path'
 import * as url from 'url'
 
 import { Response, Robot } from './hubot'
-import { CheckLinks, StatusCode } from './sitechecker/checklinks'
+import { CheckLinks, IBrokenLink, ILinkCheckSummary, StatusCode } from './sitechecker/checklinks'
 import {StatusChecker} from './sitechecker/checkstatus'
 import { History } from './sitechecker/history'
 import { Scheduler } from './sitechecker/scheduler'
@@ -67,6 +67,43 @@ module.exports = (robot: Robot) => {
     res.send('Sorry, I cant do this yet')
   })
 
+  robot.respond(/check links\s+(.+)\s+on schedule\s+(.+)$/i, (res) => {
+    let arg: url.Url
+    try {
+      arg = validateUrl(res.match[1])
+      if (!arg) {
+        res.send(`Sorry, I can't figure out how to check \`${res.match[1]}\`.  Are you sure it's a URL?`)
+        return
+      }
+    } catch (e) {
+      robot.logger.info('RL parse error for', res.match[1], ':', e)
+      res.send(`Sorry, I can't figure out how to check \`${res.match[1]}\`.  Are you sure it's a URL?`)
+      return
+    }
+
+    const schedule = res.match[2].trim()
+    const minDuration = moment.duration(SITE_CHECK_MIN_SCHEDULE_SECONDS, 'seconds')
+    try {
+      const time = new CronTime(schedule) as any
+      const next2: moment.Moment[] = time.sendAt(2)
+      const diff = next2[1].diff(next2[0])    // difference in milliseconds
+      if (diff < minDuration.asMilliseconds()) {
+        res.send(`Sorry, I can't check a site's status more often than once in ${minDuration.humanize()}.`)
+        return
+      }
+    } catch (error) {
+      res.send('Sorry, `' + schedule + '` is not a valid cron syntax schedule.  Take a look at https://en.wikipedia.org/wiki/Cron')
+      return
+    }
+
+    const context: IBrokenLinksCheckContext = {
+      site: arg,
+      rooms: [res.envelope.room],
+    }
+    const jobId = scheduler.StartJob(schedule, 'brokenlinks', context)
+    res.send(`Ok, I'll start checking ${url.format(arg)} for broken links on the schedule \`${schedule}\``)
+  })
+
   robot.respond(/check links\s+(.+)$/i, (res) => {
     let arg: url.Url
     try {
@@ -98,9 +135,9 @@ module.exports = (robot: Robot) => {
     current.set(argPretty, Date.now())
 
     // run the link check
-    CheckLinks(robot, arg, (error, status, summary) => {
+    CheckLinks(robot, arg, (error, summary) => {
       current.delete(argPretty)   // finished
-      switch (status) {
+      switch (summary.status) {
         case StatusCode.error:
         {
           res.send(`Got an error when checking ${argPretty}:  \n\n` +
@@ -111,16 +148,12 @@ module.exports = (robot: Robot) => {
         case StatusCode.timeout:
         {
           history.store(summary)
-          let resp = `Timed out checking ${argPretty}: ${summary.brokenLinks.length} broken links (${summary.linksChecked.size} total links)`
+          let resp = `Timed out checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
+                      `${summary.brokenLinks.length} broken links`
+
           if (summary.brokenLinks.length > 0) {
-            resp += '  \n' + summary.brokenLinks.map((l) => {
-              let emoji = ':x:'
-              if (l.statusCode >= 500) {
-                emoji = ':exclamation:'
-              }
-              return `${emoji} ${l.url} ${blc[l.reason]}`
-            })
-            .join('  \n')
+            resp += '  \n'
+            resp += formatBrokenLinkList(summary.brokenLinks)
           }
           res.send(resp)
           break
@@ -129,16 +162,12 @@ module.exports = (robot: Robot) => {
         case StatusCode.success:
         {
           history.store(summary)
-          let resp = `Finished checking ${argPretty}: ${summary.brokenLinks.length} broken links (${summary.linksChecked.size} total links)`
+          let resp = `Finished checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
+                      `${summary.brokenLinks.length} broken links`
+
           if (summary.brokenLinks.length > 0) {
-            resp += '  \n' + summary.brokenLinks.map((l) => {
-              let emoji = ':x:'
-              if (l.statusCode >= 500) {
-                emoji = ':exclamation:'
-              }
-              return `${emoji} ${l.url} ${blc[l.reason]}`
-            })
-            .join('  \n')
+            resp += '  \n'
+            resp += formatBrokenLinkList(summary.brokenLinks)
           }
           res.send(resp)
           break
@@ -219,6 +248,77 @@ module.exports = (robot: Robot) => {
         }
       })
   }
+
+  interface IBrokenLinksCheckContext {
+    site: url.Url
+    rooms: string[]
+  }
+
+  function brokenLinksCheckService(context: IBrokenLinksCheckContext) {
+    const argPretty = url.format(context.site)
+    current.set(argPretty, Date.now())
+
+    // run the link check
+    CheckLinks(robot, context.site, (error, summary) => {
+      current.delete(argPretty)   // finished
+
+      switch (summary.status) {
+        case StatusCode.error:
+        {
+          const last = history.lastSummary(context.site)
+          if (!last || last.summary.status !== StatusCode.error ) {
+            context.rooms.forEach((r) => {
+              robot.messageRoom(r, `:fire: ${url.format(context.site)} is down!  \n  ${error}`)
+            })
+          }
+          history.store(summary)
+          break
+        }
+
+        case StatusCode.timeout:
+        case StatusCode.success:
+        {
+          const diff = history.store(summary)
+          let resp: string
+          if (!diff) {
+            // new link check
+            resp = `Finished checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
+                      `${summary.brokenLinks.length} broken links`
+
+            if (summary.brokenLinks.length > 0) {
+              resp += '  \n'
+              resp += formatBrokenLinkList(summary.brokenLinks)
+            }
+          } else if (diff.newlyBrokenLinks.length === 0 && diff.newlyFixedLinks.length === 0) {
+             // nothing to say
+             break
+          } else {
+            if (diff.newlyBrokenLinks.length > 0) {
+              // add warning header
+              resp += `:x: Found broken links on ${argPretty}!  \n`
+            } else if (diff.newlyFixedLinks.length > 0) {
+              resp += `:white_check_mark: Some links which were broken on ${argPretty} are now fixed.  \n`
+            }
+            if (diff.newlyBrokenLinks.length > 0) {
+              resp += formatBrokenLinkList(diff.newlyBrokenLinks)
+            }
+            if (diff.newlyFixedLinks.length > 0) {
+              resp += formatBrokenLinkList(diff.newlyFixedLinks)
+            }
+          }
+
+          context.rooms.forEach((r) => {
+            robot.messageRoom(r, resp)
+          })
+        }
+        break
+
+        default:
+          robot.logger.error('[sitechecker] Unknown status code:', status)
+          break
+      }
+    })
+  }
 }
 
 const codes = {
@@ -282,4 +382,44 @@ function validateCronSchedule(cronSchedule: string, minSeconds?: number): string
   } catch (error) {
     return cronSchedule + ' is not a valid cron syntax string.  Take a look at https://en.wikipedia.org/wiki/Cron'
   }
+}
+
+function formatBrokenLinkList(brokenLinks: IBrokenLink[]): string {
+  const byBaseUrl = new Map<string, IBrokenLink[]>()
+  for (const link of brokenLinks) {
+    const base = byBaseUrl.get(link.from) || []
+    base.push(link)
+    byBaseUrl.set(link.from, base)
+  }
+
+  let resp: string = ''
+  if (brokenLinks.length > (2 * byBaseUrl.size)) {
+    // to summarize by base URL would result in a smaller output
+    for (const base of byBaseUrl.keys()) {
+      resp += 'on page ' + base + ':'
+      for (const l of byBaseUrl.get(base)) {
+        let emoji = ':x:'
+        if (l.statusCode >= 500) {
+          emoji = ':exclamation:'
+        }
+        resp += `  \n  * ${emoji} ${l.url} ${blc[l.reason]}`
+      }
+    }
+  } else {
+    resp += brokenLinks.map((l) => {
+      let emoji: string
+      if (!l.statusCode) {
+        emoji = ':fire:'
+      } else if (l.statusCode >= 500) {
+        emoji = ':exclamation:'
+      } else if (l.statusCode >= 400) {
+        emoji = ':x:'
+      } else if (l.statusCode >= 200) {
+        emoji = ':white_check_mark:'
+      }
+      return `  * ${emoji} ${l.url} ${blc[l.reason]} on page ${l.from}`
+    })
+    .join('  \n')
+  }
+  return resp
 }
