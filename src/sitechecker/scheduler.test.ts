@@ -19,7 +19,10 @@ describe('scheduler', () => {
 
   it('should start a new cron job on the given schedule', () => {
 
-    const brain = { set: () => undefined, get: () => undefined }
+    const brain = { set: () => undefined, get: () => undefined } as any
+    brain.on = (event, func) => {
+      func()
+    }
 
     const service = sinon.spy()
     const services = new Map([
@@ -41,7 +44,10 @@ describe('scheduler', () => {
 
   it('should start a new cron job immediately when runImmediately set', () => {
 
-    const brain = { set: () => undefined, get: () => undefined }
+    const brain = { set: () => undefined, get: () => undefined } as any
+    brain.on = (event, func) => {
+      func()
+    }
 
     const calls = []
     const service = (ctx) => {
@@ -68,7 +74,10 @@ describe('scheduler', () => {
 
   it('should store the cron job in the brain', () => {
 
-    const brain = { set: () => undefined, get: () => undefined }
+    const brain = { set: () => undefined, get: () => undefined } as any
+    brain.on = (event, func) => {
+      func()
+    }
     const Sset = sinon.spy(brain, 'set')
 
     const service = sinon.spy()
@@ -100,7 +109,10 @@ describe('scheduler', () => {
 
   it('should throw an error on unknown service and not store in the brain', () => {
 
-    const brain = { set: () => undefined, get: () => undefined }
+    const brain = { set: () => undefined, get: () => undefined } as any
+    brain.on = (event, func) => {
+      func()
+    }
     const Sset = sinon.spy(brain, 'set')
 
     const service = sinon.spy()
@@ -123,7 +135,10 @@ describe('scheduler', () => {
   })
 
   it('should stop a started job and remove it from the brain', () => {
-    const brain = new Map<string, any>()
+    const brain = new Map<string, any>() as any
+    brain.on = (event, func) => {
+      func()
+    }
     const Sset = sinon.spy(brain, 'set')
 
     const service = sinon.spy()
@@ -159,7 +174,10 @@ describe('scheduler', () => {
   })
 
   it('should silently return when unable to find the job to stop', () => {
-    const brain = new Map<string, any>()
+    const brain = new Map<string, any>() as any
+    brain.on = (event, func) => {
+      func()
+    }
     const Sset = sinon.spy(brain, 'set')
 
     const service = sinon.spy()
@@ -190,7 +208,10 @@ describe('scheduler', () => {
   })
 
   it('should get all running jobs', () => {
-    const brain = new Map<string, any>()
+    const brain = new Map<string, any>() as any
+    brain.on = (event, func) => {
+      func()
+    }
     const Sset = sinon.spy(brain, 'set')
 
     const service = sinon.spy()
@@ -244,7 +265,10 @@ describe('scheduler', () => {
           },
         },
       }],
-    ])
+    ]) as any
+    brain.on = (event, func) => {
+      func()
+    }
 
     const service = sinon.spy()
     const services = new Map([
@@ -271,7 +295,10 @@ describe('scheduler', () => {
   })
 
   it('should handle a service throwing an error', () => {
-    const brain = { set: () => undefined, get: () => undefined }
+    const brain = { set: () => undefined, get: () => undefined } as any
+    brain.on = (event, func) => {
+      func()
+    }
 
     const service = sinon.mock()
     service.throws(new Error('this should be handled'))

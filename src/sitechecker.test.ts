@@ -330,7 +330,7 @@ describe('hubot sitechecker', () => {
 
         // let it do one check
       this.clock.tick(5.5 * 60 * 1000) // 5.5 min
-      await wait(10)
+      await wait(50)
 
         // now check again and get two 500s in a row
       ok = false
@@ -343,7 +343,7 @@ describe('hubot sitechecker', () => {
       ok = true
       this.clock.tick(5 * 60 * 1000)  // 20.5 min
 
-      await wait(10)
+      await wait(50)
 
       expect(room.messages).to.deep.equal([
         ['alice', 'hubot check http://localhost:8081/health on schedule */5 * * * * '],

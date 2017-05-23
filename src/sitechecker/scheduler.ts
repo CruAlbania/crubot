@@ -57,9 +57,10 @@ export class Scheduler {
       store = { jobs: {} }
     }
     store.jobs[definition.id] = definition
-    this.brain.set<ICronJobStore>('scheduler.jobs', store)
 
+      // start the job before we set the store - whenever we set the store, the loaded event fires.
     const job = this.startJobFromDefinition(definition, runImmediately)
+    this.brain.set<ICronJobStore>('scheduler.jobs', store)
 
     return definition.id
   }
@@ -108,7 +109,7 @@ export class Scheduler {
         continue
       }
       if (this.cronjobs.has(id)) {
-        // we already have started this
+        // we already have started this from a previous 'loaded' event
         continue
       }
       const definition = store.jobs[id]
