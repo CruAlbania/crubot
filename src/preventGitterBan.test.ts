@@ -1,6 +1,7 @@
 // tslint:disable:no-var-requires
 import * as chai from 'chai'
 import * as fs from 'fs'
+import * as sinon from 'sinon'
 const expect = chai.expect
 
 import {Response, Robot} from './hubot'
@@ -24,6 +25,10 @@ describe('preventGitterBan', () => {
 
   afterEach(() => {
     room.destroy()
+    if (this.clock) {
+      this.clock.restore()
+      delete(this.clock)
+    }
   })
 
   it('should not modify output when saying different things', async () => {
@@ -119,11 +124,54 @@ describe('preventGitterBan', () => {
       [ 'hubot', 'hello' ],
     ])
   })
+
+  it('should break up large strings into multiple messages', async () => {
+    room.robot.respond(/do it/i, (resp: Response) => {
+      resp.reply('incoming long string!')
+      let str = 'asdf\n'
+      for (let i = 0; i < 20; i++) {
+        str += i + ': asasldfkjqwlkejrqlknvlkqwjer lkqwjefl qwejkrlqwkje lkfjqw eflkjq flkej \nq flkqwjelkwjqflkqwef lkwje flkqwje flqwkejflkqwjefqwelfk weflkjqwlkefjwe\n'
+      }
+      resp.reply(str)
+    })
+
+    this.clock = sinon.useFakeTimers()
+
+    await room.user.say('alice', 'hubot do it')
+    await wait(50)
+
+    // let it do the next chunk
+    this.clock.tick(2050)   // 2.05 seconds
+    await wait(50)
+
+    await room.user.say('alice', 'hubot echo hi')
+
+    this.clock.tick(4050)   // 4.05 seconds
+    await wait(50)
+
+    this.clock.tick(4050)   // 6.05 seconds
+    await wait(50)
+
+    this.clock.tick(4050)   // 6.05 seconds
+    await wait(50)
+
+    // assert
+    expect(room.messages).to.have.length(8, 'messages.length')
+    expect(room.messages[1][1]).to.equal('@alice incoming long string!')
+    expect(room.messages[2][1]).to.have.length(994)
+    expect(room.messages[3][1]).to.have.length(983)
+    expect(room.messages[4]).to.deep.equal(['alice', 'hubot echo hi'])
+    expect(room.messages[5][1]).to.have.length(988)
+    expect(room.messages[6]).to.deep.equal(['hubot', 'q flkqwjelkwjqflkqwef lkwje flkqwje flqwkejflkqwjefqwelfk weflkjqwlkefjwe\n'])
+    expect(room.messages[7]).to.deep.equal(['hubot', 'hi'])
+  })
 })
 
+// since we might override setTimeout with sinon timers, capture it here and use it instead
+const origSetTimeout = setTimeout
 function wait(milliseconds: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    setTimeout(() => {
+    origSetTimeout(() => {
       resolve()
     }, milliseconds)
   })

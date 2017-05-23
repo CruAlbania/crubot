@@ -71,4 +71,75 @@ module.exports = (robot: Robot) => {
       next(done)
     },
   )
+
+    // break up large strings
+
+  robot.responseMiddleware(
+    (context, next, done) => {
+      const length = context.strings.reduce((size, s) => size += s.length, 0)
+      if (length < 1024) {
+        // if we're processing a queue, drop this at the end
+        if (queue.length > 0) {
+          queue.push({ room: context.response.envelope.room, message: context.strings.join()})
+          context.strings = []
+        }
+
+        next(done)
+        return
+      }
+
+      // over 1000 chars - break it up
+      for (const str of context.strings) {
+        let currentBlock = []
+        for (let i = 0; i < str.length; ) {
+          const nextNewline = str.indexOf('\n', i)
+          let thisLine: string
+          if (nextNewline === -1) {
+            thisLine = str.substring(i)
+          } else {
+            thisLine = str.substring(i, nextNewline + 1)
+          }
+          i = nextNewline + 1
+
+          const blockLength = currentBlock.reduce((size, s) => size += s.length, 0)
+          if (blockLength + thisLine.length > 1024) {
+              // we would go over the limit.  Push it to the queue.
+            queue.push({ room: context.response.envelope.room, message: currentBlock.join() })
+            currentBlock = []
+          }
+          currentBlock.push(thisLine)
+        }
+
+        // push the remainder to the queue
+        if (currentBlock.length > 0) {
+          queue.push({ room: context.response.envelope.room, message: currentBlock.join() })
+        }
+      }
+
+      if (!currentTimeout) {
+        // The queue length was zero before we started.  We can process the first block immediately
+        context.strings = [queue[0].message]
+        queue = queue.slice(1)
+        // start processing
+        currentTimeout = setTimeout(processQueue, 2000)
+      }
+      next(done)
+    },
+  )
+
+  let queue = new Array<{ room: string, message: string }>()
+  let currentTimeout: NodeJS.Timer
+
+  function processQueue() {
+    if (queue.length === 0) {
+      // we're done
+      return
+    }
+
+    const toSend = queue[0]
+    queue = queue.slice(1)
+    robot.messageRoom(toSend.room, toSend.message)
+
+    setTimeout(processQueue, 2000)
+  }
 }
