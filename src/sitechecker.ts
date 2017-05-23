@@ -380,7 +380,7 @@ module.exports = (robot: Robot) => {
         } else {
           if (result.brokenSince !== 0) {
             // it's fixed, but it was broken before.
-            const howLong = moment.duration(result.brokenSince).humanize()
+            const howLong = moment.duration(result.brokenSince, 'milliseconds').humanize()
             context.rooms.forEach((r) => {
               robot.messageRoom(r, `:white_check_mark: ${url.format(context.site)} is OK!  \n  It was down for ${howLong}.`)
             })
