@@ -2,8 +2,9 @@ import * as Log from 'log'
 import * as uuid from 'uuid'
 
 import { CronJob } from 'cron'
+import { EventEmitter } from 'events'
 
-interface IKVStore {
+interface IKVStore extends EventEmitter {
   get<T>(key: string): T
   set<T>(key: string, value: T)
 }
@@ -26,7 +27,9 @@ export class Scheduler {
     this.services = services
     this.cronjobs = new Map<string, CronJob>()
 
-    this.loadCronJobs()
+    this.brain.on('loaded', () => {
+      this.loadCronJobs()
+    })
   }
 
   /**
@@ -96,6 +99,7 @@ export class Scheduler {
   private loadCronJobs(): Map<string, CronJob> {
     const store = this.brain.get<ICronJobStore>('scheduler.jobs')
     if (!store) {
+      this.logger.info('[sitechecker] no scheduled jobs')
       return
     }
 
@@ -103,7 +107,12 @@ export class Scheduler {
       if (!store.jobs.hasOwnProperty(id)) {
         continue
       }
+      if (this.cronjobs.has(id)) {
+        // we already have started this
+        continue
+      }
       const definition = store.jobs[id]
+      this.logger.info(`[sitechecker] loading job id ${id}: ${definition.serviceName} on schedule ${definition.cronTime}`)
       this.startJobFromDefinition(definition, false)
     }
   }

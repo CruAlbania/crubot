@@ -17,6 +17,7 @@
 //   hubot stop checking links <url> - Stop checking links automatically on the given site
 //   hubot check <url> on schedule <cron schedule> - Automatically run a status check against the given URL on the schedule specified by the cron expression.
 //   hubot stop checking <url> - Stop running a status check automatically against the given URL
+//   hubot list scheduled checks - List all the site checks that are scheduled to be run.
 //
 // Notes:
 //
@@ -336,6 +337,27 @@ module.exports = (robot: Robot) => {
     res.send(`Ok, I'll stop checking ${url.format(arg)}`)
   })
 
+  const serviceNamesPretty = {
+    status: 'Status Check',
+    brokenlinks: 'Broken Link Check',
+  }
+  robot.respond(/list\s+scheduled(?:\s+site)?\s+checks/i, (res) => {
+    res.finish()
+    const jobs = scheduler.GetRunningJobs()
+    if (jobs.length === 0) {
+      res.send("I don't have any site checks scheduled.")
+      return
+    }
+    let resp = "Here's all the checks I currently have scheduled:  \n"
+    resp += jobs.map((job) => {
+      const next = ((job.job as any).nextDate() as moment.Moment)
+      return `  * ${serviceNamesPretty[job.definition.serviceName]} on ${url.format(job.definition.context.site)}  \n` +
+             `      next check in ${next.fromNow(true)}`
+    }).join('  \n')
+
+    res.send(resp)
+  })
+
   // ----------------------------- CRON SERVICES -------------------------- //
 
   interface IStatusCheckContext {
@@ -347,6 +369,7 @@ module.exports = (robot: Robot) => {
     statusChecker.CheckStatus(context.site)
       .then((result) => {
         if (result.error) {
+          robot.logger.debug('[sitechecker] Broken site', result)
           if (result.brokenSince === result.timestamp) {
             // it's newly broken - say something
             context.rooms.forEach((r) => {
