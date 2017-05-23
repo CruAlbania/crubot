@@ -12,8 +12,11 @@
 //   HUBOT_SITE_CHECK_MIN_SCHEDULE_SECONDS: The minimum period for status checking any particular site.  Default: 5 minutes.
 //
 // Commands:
-//   hubot check links <url> - Crawl the given URL recursively for broken links
-//   hubot check <url> on schedule <schedule> - Automatically run a status check against the given URL on the schedule specified by the cron expression.
+//   hubot check links <url> - Crawl the given website recursively for broken links
+//   hubot check links <url> on schedule <cron schedule> - Crawl the given site automatically on the schedule, reporting newly broken links
+//   hubot stop checking links <url> - Stop checking links automatically on the given site
+//   hubot check <url> on schedule <cron schedule> - Automatically run a status check against the given URL on the schedule specified by the cron expression.
+//   hubot stop checking <url> - Stop running a status check automatically against the given URL
 //
 // Notes:
 //
@@ -66,12 +69,12 @@ module.exports = (robot: Robot) => {
     robot.logger.error('Link Checker timeout for ', arg)
   })*/
 
-  robot.respond(/check links\s+(.+)\s+every\s+(.+)$/i, (res) => {
+  robot.respond(/check\s+links\s+(.+)\s+every\s+(.+)$/i, (res) => {
     res.finish()
     res.send('Sorry, I cant do this yet')
   })
 
-  robot.respond(/check links\s+(.+)\s+on schedule\s+(.+)$/i, (res) => {
+  robot.respond(/check\s+links\s+(.+)\s+on schedule\s+(.+)$/i, (res) => {
     res.finish()
     let arg: url.Url
     try {
@@ -130,6 +133,35 @@ module.exports = (robot: Robot) => {
 
     const jobId = scheduler.StartJob(schedule, 'brokenlinks', context, true)
     res.send(`Ok, I'll start checking ${url.format(context.site)} for broken links on the schedule \`${schedule}\``)
+  })
+
+  robot.respond(/stop\s+check(?:ing)?\s+links\s+(.+)$/i, (res) => {
+    res.finish()
+    let arg: url.Url
+    try {
+      arg = validateUrl(res.match[1])
+      if (!arg) {
+        res.send(`Sorry, I can't figure out \`${res.match[1]}\`.  Are you sure it's a URL?`)
+        return
+      }
+    } catch (e) {
+      robot.logger.info('RL parse error for', res.match[1], ':', e)
+      res.send(`Sorry, I can't figure out \`${res.match[1]}\`.  Are you sure it's a URL?`)
+      return
+    }
+
+    const existing = scheduler.GetRunningJobs().find((job) =>
+        job.definition.serviceName === 'brokenlinks' &&    // a 'brokenlinks' job
+        isSameSite(job.definition.context.site, arg) &&   // for this site
+        Path.normalize(arg.path) === Path.normalize(job.definition.context.site.path), // with the same path
+      )
+    if (!existing) {
+      res.send(`I wasn't checking ${url.format(arg)} for broken links.`)
+      return
+    }
+
+    const job = scheduler.StopJob(existing.definition.id)
+    res.send(`Ok, I'll stop checking ${url.format(arg)} for broken links.`)
   })
 
   robot.respond(/check links\s+(.+)$/i, (res) => {
@@ -273,6 +305,35 @@ module.exports = (robot: Robot) => {
 
     const jobId = scheduler.StartJob(schedule, 'status', context)
     res.send(`Ok, I'll start checking ${url.format(context.site)} on the schedule \`${schedule}\``)
+  })
+
+  robot.respond(/stop\s+check(?:ing)?\s+(.+)$/i, (res) => {
+    res.finish()
+    let arg: url.Url
+    try {
+      arg = validateUrl(res.match[1])
+      if (!arg) {
+        res.send(`Sorry, I can't figure out \`${res.match[1]}\`.  Are you sure it's a URL?`)
+        return
+      }
+    } catch (e) {
+      robot.logger.info('RL parse error for', res.match[1], ':', e)
+      res.send(`Sorry, I can't figure out \`${res.match[1]}\`.  Are you sure it's a URL?`)
+      return
+    }
+
+    const existing = scheduler.GetRunningJobs().find((job) =>
+        job.definition.serviceName === 'status' &&    // a 'brokenlinks' job
+        isSameSite(job.definition.context.site, arg) &&   // for this site
+        Path.normalize(arg.path) === Path.normalize(job.definition.context.site.path), // with the same path
+      )
+    if (!existing) {
+      res.send(`I wasn't checking ${url.format(arg)}`)
+      return
+    }
+
+    const job = scheduler.StopJob(existing.definition.id)
+    res.send(`Ok, I'll stop checking ${url.format(arg)}`)
   })
 
   // ----------------------------- CRON SERVICES -------------------------- //

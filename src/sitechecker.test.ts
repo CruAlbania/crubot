@@ -131,9 +131,6 @@ describe('hubot sitechecker', () => {
     })
 
     it('should link check on the schedule', async () => {
-      const brain = new Map<string, any>()
-      room.robot.brain = brain
-
         // set the fake clock to 12:00:01 AM today
       const start = moment().startOf('day').add(1, 'second').toDate().getTime()
       this.clock = sinon.useFakeTimers(start)
@@ -228,9 +225,54 @@ describe('hubot sitechecker', () => {
   })
 
   describe('stop checking links <site>', () => {
-    it('should notify the user if it wasnt checking the site')
+    it('should notify the user if it wasnt checking the site', async () => {
 
-    it('should cancel the job if it was running')
+      await room.user.say('alice', 'hubot stop checking links http://localhost:8081/')
+
+      // assert
+      expect(room.messages).to.deep.equal([
+        ['alice', 'hubot stop checking links http://localhost:8081/'],
+        ['hubot', "I wasn't checking http://localhost:8081/ for broken links."],
+      ])
+    })
+
+    it('should cancel the job if it was running', async () => {
+        // set the fake clock to 12:00:01 AM today
+      const start = moment().startOf('day').add(1, 'second').toDate().getTime()
+      this.clock = sinon.useFakeTimers(start)
+      app.get('/', (req, res) => {
+        res.send('<html><body><h1>Hello World!</h1>' +
+          '<a href="/goodLink"></a>' +
+          '<a href="/badLink"></a>' +
+          '</body></html>')
+      })
+      app.get('/goodLink', (req, res) => {
+        res.send('<html><body><h1>Good Link!</h1></body></h1>')
+      })
+      await room.user.say('alice', 'hubot check links http://localhost:8081 on schedule 0 0 * * * ')
+      // should do a first check immediately...
+      await wait(10)
+      this.clock.tick(100)
+      await wait(50)
+
+      // act
+      await room.user.say('alice', 'hubot stop checking links http://localhost:8081')
+
+        // now run the timer one day to where it would have run the cron job
+      this.clock.tick(24 * 60 * 60 * 1000)    // puts us at 12:00:01 am tomorrow
+      await wait(50)
+
+      // assert
+      expect(room.messages).to.deep.equal([
+        ['alice', 'hubot check links http://localhost:8081 on schedule 0 0 * * * '],
+        ['hubot', "Ok, I'll start checking http://localhost:8081/ for broken links on the schedule `0 0 * * *`" ],
+        ['hubot', 'Finished checking 2 total links at http://localhost:8081/:  \n1 broken links  \n' +
+                    '  * :x: http://localhost:8081/badLink Not Found (404) on page http://localhost:8081/'],
+        ['alice', 'hubot stop checking links http://localhost:8081'],
+        ['hubot', "Ok, I'll stop checking http://localhost:8081/ for broken links."],
+
+      ])
+    })
 
     it('should remove the room if it was running in multiple rooms wtihout canceling the job')
   })
@@ -356,9 +398,44 @@ describe('hubot sitechecker', () => {
   })
 
   describe('stop checking <site>', () => {
-    it('should notify the user if it wasnt checking the site')
+    it('should notify the user if it wasnt checking the site', async () => {
 
-    it('should cancel the job if it was running')
+      await room.user.say('alice', 'hubot stop checking http://localhost:8081/health')
+
+      // assert
+      expect(room.messages).to.deep.equal([
+        ['alice', 'hubot stop checking http://localhost:8081/health'],
+        ['hubot', "I wasn't checking http://localhost:8081/health"],
+      ])
+    })
+
+    it('should cancel the job if it was running', async () => {
+      this.clock = sinon.useFakeTimers()
+      app.get('/health', (req, res) => {
+        res.send('OK')
+      })
+
+      await room.user.say('alice', 'hubot check http://localhost:8081/health on schedule */5 * * * * ')
+
+        // let it do one check
+      this.clock.tick(5.5 * 60 * 1000) // 5.5 min
+      await wait(10)
+
+      // act
+      await room.user.say('alice', 'hubot stop checking http://localhost:8081/health')
+
+        // now run it till it checks again
+      this.clock.tick(5 * 60 * 1000)  // 10.5 min
+
+      await wait(10)
+
+      expect(room.messages).to.deep.equal([
+        ['alice', 'hubot check http://localhost:8081/health on schedule */5 * * * * '],
+        ['hubot', 'Ok, I\'ll start checking http://localhost:8081/health on the schedule `*/5 * * * *`'],
+        ['alice', 'hubot stop checking http://localhost:8081/health'],
+        ['hubot', 'Ok, I\'ll stop checking http://localhost:8081/health'],
+      ])
+    })
 
     it('should remove the room if it was running in multiple rooms wtihout canceling the job')
   })
