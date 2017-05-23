@@ -8,6 +8,7 @@
 //   HUBOT_LINK_CHECKER_EXCLUDED_KEYWORDS: a space-separated set of globs to ignore.  Default: "tracking" (see https://github.com/stevenvachon/broken-link-checker#optionsexcludedkeywords)
 //   HUBOT_LINK_CHECKER_TIMEOUT_SECONDS: The number of seconds before a site scan ends in timeout.  Default: 30 minutes.
 //   HUBOT_LINK_CHECKER_COOLDOWN_SECONDS: The number of seconds before a site scan can be tried again.  Default: 1 hour.
+//   HUBOT_LINK_CHECKER_MIN_SCHEDULE_SECONDS: The minimum period for checking links of any particular site.  Default: 1 day.
 //   HUBOT_SITE_CHECK_MIN_SCHEDULE_SECONDS: The minimum period for status checking any particular site.  Default: 5 minutes.
 //
 // Commands:
@@ -22,7 +23,6 @@
 
 import * as blc from 'broken-link-checker'
 import { CronTime } from 'cron'
-import * as Fs from 'fs'
 import * as moment from 'moment'
 import * as Path from 'path'
 import * as url from 'url'
@@ -32,10 +32,12 @@ import { CheckLinks, IBrokenLink, ILinkCheckSummary, StatusCode } from './sitech
 import {StatusChecker} from './sitechecker/checkstatus'
 import { History } from './sitechecker/history'
 import { Scheduler } from './sitechecker/scheduler'
+import {isSameSite} from './util'
 
 module.exports = (robot: Robot) => {
 
   const LINK_CHECKER_COOLDOWN_SECONDS = process.env.HUBOT_LINK_CHECKER_COOLDOWN_SECONDS || (60 * 60)   // 1 hour default
+  const LINK_CHECKER_MIN_SCHEDULE_SECONDS = process.env.HUBOT_LINK_CHECKER_MIN_SCHEDULE_SECONDS || (24 * 60 * 60) // 1 day default
   const SITE_CHECK_MIN_SCHEDULE_SECONDS = process.env.HUBOT_SITE_CHECK_MIN_SCHEDULE_SECONDS || (5 * 60)   // 5 min default
 
     // status check
@@ -48,6 +50,7 @@ module.exports = (robot: Robot) => {
     // scheduler
   const scheduler = new Scheduler(robot.brain, new Map([
     ['status', statusCheckService],
+    ['brokenlinks', brokenLinksCheckService],
   ]))
 
   /*robot.on('link-check.error', (arg: url.Url) => {
@@ -64,10 +67,12 @@ module.exports = (robot: Robot) => {
   })*/
 
   robot.respond(/check links\s+(.+)\s+every\s+(.+)$/i, (res) => {
+    res.finish()
     res.send('Sorry, I cant do this yet')
   })
 
   robot.respond(/check links\s+(.+)\s+on schedule\s+(.+)$/i, (res) => {
+    res.finish()
     let arg: url.Url
     try {
       arg = validateUrl(res.match[1])
@@ -82,13 +87,13 @@ module.exports = (robot: Robot) => {
     }
 
     const schedule = res.match[2].trim()
-    const minDuration = moment.duration(SITE_CHECK_MIN_SCHEDULE_SECONDS, 'seconds')
+    const minDuration = moment.duration(LINK_CHECKER_MIN_SCHEDULE_SECONDS, 'seconds')
     try {
       const time = new CronTime(schedule) as any
       const next2: moment.Moment[] = time.sendAt(2)
       const diff = next2[1].diff(next2[0])    // difference in milliseconds
       if (diff < minDuration.asMilliseconds()) {
-        res.send(`Sorry, I can't check a site's status more often than once in ${minDuration.humanize()}.`)
+        res.send(`Sorry, Link checking takes a long time.  For that reason I can't schedule link checks more than once in ${minDuration.humanize()}.`)
         return
       }
     } catch (error) {
@@ -96,15 +101,39 @@ module.exports = (robot: Robot) => {
       return
     }
 
-    const context: IBrokenLinksCheckContext = {
-      site: arg,
-      rooms: [res.envelope.room],
+    const existing = scheduler.GetRunningJobs().find((job) =>
+        job.definition.serviceName === 'brokenlinks' &&    // a 'brokenlinks' job
+        isSameSite(job.definition.context.site, arg) &&   // for this site
+        Path.normalize(arg.path) === Path.normalize(job.definition.context.site.path), // with the same path
+      )
+
+    let context: IBrokenLinksCheckContext
+    if (existing) {
+      context = existing.definition.context
+      if (context.rooms.indexOf(res.envelope.room) !== -1) {
+        res.send(`I'm already checking this site on the schedule \`${existing.definition.cronTime}\`.  \n` +
+          `Please stop the job using \`${robot.name} stop checking links ${url.format(context.site)}\` and then restart it with the new schedule.`)
+        return
+      } else {
+        // update the context to report also to this room
+        context.rooms.push(res.envelope.room)
+        // restart the job with the new context
+        scheduler.StopJob(existing.definition.id)
+        return
+      }
+    } else {
+      context = {
+        site: arg,
+        rooms: [res.envelope.room],
+      }
     }
-    const jobId = scheduler.StartJob(schedule, 'brokenlinks', context)
-    res.send(`Ok, I'll start checking ${url.format(arg)} for broken links on the schedule \`${schedule}\``)
+
+    const jobId = scheduler.StartJob(schedule, 'brokenlinks', context, true)
+    res.send(`Ok, I'll start checking ${url.format(context.site)} for broken links on the schedule \`${schedule}\``)
   })
 
   robot.respond(/check links\s+(.+)$/i, (res) => {
+    res.finish()
     let arg: url.Url
     try {
       arg = validateUrl(res.match[1])
@@ -181,10 +210,12 @@ module.exports = (robot: Robot) => {
   })
 
   robot.respond(/check\s+(.+)\s+every\s+(.+)$/i, (res) => {
+    res.finish()
     res.send('Sorry, I cant do this yet')
   })
 
   robot.respond(/check\s+(.+)\s+on\s+schedule\s+(.+)$/i, (res) => {
+    res.finish()
     let arg: url.Url
     try {
       arg = validateUrl(res.match[1])
@@ -213,13 +244,38 @@ module.exports = (robot: Robot) => {
       return
     }
 
-    const context: IStatusCheckContext = {
-      site: arg,
-      rooms: [res.envelope.room],
+    const existing = scheduler.GetRunningJobs().find((job) =>
+        job.definition.serviceName === 'status' &&        // a 'status' job
+        isSameSite(job.definition.context.site, arg) &&   // for this site
+        Path.normalize(arg.path) === Path.normalize(job.definition.context.site.path), // with the same path
+      )
+
+    let context: IStatusCheckContext
+    if (existing) {
+      context = existing.definition.context
+      if (context.rooms.indexOf(res.envelope.room) !== -1) {
+        res.send(`I'm already checking this site on the schedule \`${existing.definition.cronTime}\`.  \n` +
+          `Please stop the job using \`${robot.name} stop checking ${url.format(context.site)}\` and then restart it with the new schedule.`)
+        return
+      } else {
+        // update the context to report also to this room
+        context.rooms.push(res.envelope.room)
+        // restart the job with the new context
+        scheduler.StopJob(existing.definition.id)
+        return
+      }
+    } else {
+      context = {
+        site: arg,
+        rooms: [res.envelope.room],
+      }
     }
+
     const jobId = scheduler.StartJob(schedule, 'status', context)
-    res.send(`Ok, I'll start checking ${url.format(arg)} on the schedule \`${schedule}\``)
+    res.send(`Ok, I'll start checking ${url.format(context.site)} on the schedule \`${schedule}\``)
   })
+
+  // ----------------------------- CRON SERVICES -------------------------- //
 
   interface IStatusCheckContext {
     site: url.Url
@@ -282,7 +338,8 @@ module.exports = (robot: Robot) => {
           let resp: string
           if (!diff) {
             // new link check
-            resp = `Finished checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
+            const finished = summary.status === StatusCode.timeout ? 'Timed out' : 'Finished'
+            resp = `${finished} checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
                       `${summary.brokenLinks.length} broken links`
 
             if (summary.brokenLinks.length > 0) {
@@ -295,9 +352,9 @@ module.exports = (robot: Robot) => {
           } else {
             if (diff.newlyBrokenLinks.length > 0) {
               // add warning header
-              resp += `:x: Found broken links on ${argPretty}!  \n`
+              resp = `:x: Found broken links on ${argPretty}  \n`
             } else if (diff.newlyFixedLinks.length > 0) {
-              resp += `:white_check_mark: Some links which were broken on ${argPretty} are now fixed.  \n`
+              resp = `:white_check_mark: Some links which were broken on ${argPretty} are now fixed.  \n`
             }
             if (diff.newlyBrokenLinks.length > 0) {
               resp += formatBrokenLinkList(diff.newlyBrokenLinks)
@@ -319,7 +376,10 @@ module.exports = (robot: Robot) => {
       }
     })
   }
-}
+
+}// end module.exports = (robot: Robot) => {}
+
+// ----------------------------- UTILITIES ------------------------------ //
 
 const codes = {
   ECONNREFUSED: (err) => `The connection to ${err.address}:${err.port} was refused`,

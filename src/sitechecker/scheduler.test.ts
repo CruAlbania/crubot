@@ -39,6 +39,33 @@ describe('scheduler', () => {
     expect(service.args[0][0]).to.deep.equal({ test: 1})
   })
 
+  it('should start a new cron job immediately when runImmediately set', () => {
+
+    const brain = { set: () => undefined, get: () => undefined }
+
+    const calls = []
+    const service = (ctx) => {
+      calls.push(Date.now())
+    }
+    const services = new Map([
+     ['mock', service],
+    ])
+
+    const scheduler = new Scheduler(brain as any, services)
+
+    // act
+    const jobId = scheduler.StartJob('* * * * *', 'mock', { test: 1 }, true)
+
+    // assert
+    expect(jobId).to.exist
+
+    this.clock.tick(90 * 1000) // 1.5 minute - not enough for two jobs
+
+    expect(calls).to.have.length(2)
+    expect(calls[0]).to.equal(0)
+    expect(calls[1]).to.equal(60 * 1000)
+  })
+
   it('should store the cron job in the brain', () => {
 
     const brain = { set: () => undefined, get: () => undefined }

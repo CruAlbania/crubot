@@ -34,8 +34,9 @@ export class Scheduler {
    * @param cronTime The schedule in cron syntax for the job
    * @param serviceName The name of the service to be executed
    * @param context The context to be passed to the executed service
+   * @param runImmediately (optional) Whether to have the cron job fire immediately or wait for the next scheduled time
    */
-  public StartJob(cronTime: string, serviceName: string, context: any): string {
+  public StartJob(cronTime: string, serviceName: string, context: any, runImmediately: boolean = false): string {
 
     if (!this.services.has(serviceName)) {
       throw new Error('Unable to find service named ' + serviceName)
@@ -55,7 +56,7 @@ export class Scheduler {
     store.jobs[definition.id] = definition
     this.brain.set<ICronJobStore>('scheduler.jobs', store)
 
-    const job = this.startJobFromDefinition(definition)
+    const job = this.startJobFromDefinition(definition, runImmediately)
 
     return definition.id
   }
@@ -103,11 +104,11 @@ export class Scheduler {
         continue
       }
       const definition = store.jobs[id]
-      this.startJobFromDefinition(definition)
+      this.startJobFromDefinition(definition, false)
     }
   }
 
-  private startJobFromDefinition(definition: IJobDefinition): CronJob {
+  private startJobFromDefinition(definition: IJobDefinition, runOnInit: boolean): CronJob {
     const service = this.services.get(definition.serviceName)
     if (!service) {
       if (this.logger) {
@@ -133,7 +134,7 @@ export class Scheduler {
       true,
       null,
       definition.context,
-      false,
+      runOnInit,
       )
     this.cronjobs.set(definition.id, job)
 
@@ -141,7 +142,7 @@ export class Scheduler {
   }
 }
 
-interface ICronJobStore {
+export interface ICronJobStore {
   jobs: {
     [id: string]: IJobDefinition,
   }
