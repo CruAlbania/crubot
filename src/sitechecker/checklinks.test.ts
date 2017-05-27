@@ -1,7 +1,6 @@
 // tslint:disable:no-var-requires
 import * as chai from 'chai'
 import * as express from 'express'
-import * as fs from 'fs'
 import { Server } from 'http'
 import { Robot } from '../hubot'
 const expect = chai.expect
@@ -368,7 +367,32 @@ describe('hubot check links', () => {
       [ 'hubot', 'Timed out checking 2 total links at http://localhost:8081/:  \n1 broken links  \n' +
                     '  * :x: http://localhost:8081/badlink Not Found (404) on page http://localhost:8081/' ],
     ])
-  }).timeout(2100)
+  })// .timeout(2100)
+
+  // Tests a bug in parse5 which causes BrokenLinkChecker to fail.
+  // https://github.com/inikulin/parse5/issues/197
+  // https://github.com/stevenvachon/broken-link-checker/issues/71
+  // un-skip when the bugs are fixed
+  it.skip('should handle interesting html', async () => {
+    app.get('/', (req, res) => {
+      res.send('<html><body><a href="#"><p></a></body></html>')
+    })
+
+    // act
+    await room.user.say('alice', 'hubot check links http://localhost:8081')
+    await new Promise((resolve, reject) => {
+      room.robot.on('link-check.end', (urls) => resolve())
+    })
+    await wait(10)
+
+    // assert
+    expect(room.messages).to.deep.equal([
+      [ 'alice', 'hubot check links http://localhost:8081' ],
+      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
+      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n0 broken links' ],
+    ])
+  })
+
 })
 
 function wait(milliseconds: number): Promise<void> {
