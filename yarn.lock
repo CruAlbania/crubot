@@ -377,9 +377,9 @@ braces@^1.8.2:
     preserve "^0.2.0"
     repeat-element "^1.1.2"
 
-broken-link-checker@^0.7.5:
-  version "0.7.5"
-  resolved "https://registry.yarnpkg.com/broken-link-checker/-/broken-link-checker-0.7.5.tgz#ed9f89a3d358b25377d6098b91cf0ffed41be6cf"
+broken-link-checker@^0.7.6:
+  version "0.7.6"
+  resolved "https://registry.yarnpkg.com/broken-link-checker/-/broken-link-checker-0.7.6.tgz#94e3b4c814521104c4dab247d7e1a8dd14616093"
   dependencies:
     bhttp "^1.2.1"
     calmcard "~0.1.1"

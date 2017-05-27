@@ -23,7 +23,7 @@
   "author": "Gordon Burgett <gordon.burgett@cru.org>",
   "description": "Better than clippy",
   "dependencies": {
-    "broken-link-checker": "^0.7.5",
+    "broken-link-checker": "^0.7.6",
     "coffee-script": "^1.12.6",
     "cron": "^1.2.1",
     "hubot": "git+https://github.com/CruAlbania/hubot.git",

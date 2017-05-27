@@ -372,8 +372,8 @@ describe('hubot check links', () => {
   // Tests a bug in parse5 which causes BrokenLinkChecker to fail.
   // https://github.com/inikulin/parse5/issues/197
   // https://github.com/stevenvachon/broken-link-checker/issues/71
-  // un-skip when the bugs are fixed
-  it.skip('should handle interesting html', async () => {
+  // fixed in broken-link-checker 0.7.6
+  it('should handle interesting html', async () => {
     app.get('/', (req, res) => {
       res.send('<html><body><a href="#"><p></a></body></html>')
     })
@@ -389,7 +389,7 @@ describe('hubot check links', () => {
     expect(room.messages).to.deep.equal([
       [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n0 broken links' ],
+      [ 'hubot', 'Finished checking 0 total links at http://localhost:8081/:  \n0 broken links' ],
     ])
   })
 
