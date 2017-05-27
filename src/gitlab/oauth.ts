@@ -122,8 +122,8 @@ export class OAuthListener {
 
       self.hashes.delete(userId)
       // OK, they gave us a code.  We can get the token now.
-      // parameters = 'client_id=APP_ID&client_secret=APP_SECRET&code=RETURNED_CODE&
-      //    grant_type=authorization_code&redirect_uri=REDIRECT_URI'
+      // parameters = `client_id=${APP_ID}&client_secret=${APP_SECRET}&code=${RETURNED_CODE}&
+      //    grant_type=authorization_code&redirect_uri=${REDIRECT_URI}`
       // RestClient.post 'http://gitlab.example.com/oauth/token', parameters
       request.post({ url: this.options.gitlabUrl + '/oauth/token', form: {
           client_id: this.options.appId,

@@ -6,7 +6,19 @@
     "build": "gulp build",
     "lint": "tslint 'src/**/*.ts?(x)' -e '**/*.d.ts'",
     "test": "mocha -t 130000 -s 1000 --compilers coffee:coffee-script/register,ts:ts-node/register --recursive 'src/**/*.test.ts'",
-    "watch": "nodemon -e js,jsx,ts,tsx,json --exec \"npm run $1\""
+    "watch": "nodemon -e js,jsx,ts,tsx,json --exec \"npm run $1\"",
+    "postinstall": "[ \"$NODE_ENV\" != production ] && (git secrets > /dev/null || echo \"\\033[1;31mYou need to install git-secrets from \\033[0mhttps://github.com/awslabs/git-secrets\" )",
+    "commit": "commit-wizard"
+  },
+  "config": {
+    "pre-git": {
+      "pre-push": [
+        "[ \"$NODE_ENV\" = production ] && exit 0; grep 'patterns =' secrets-config | awk '{ print $3 }' | xargs -L 1 git secrets --add; grep 'allowed =' secrets-config | awk '{ print $3 }' | xargs -L 1 git secrets --add --allowed; git secrets --scan"
+      ],
+      "post-commit": [],
+      "post-checkout": [],
+      "post-merge": []
+    }
   },
   "author": "Gordon Burgett <gordon.burgett@cru.org>",
   "description": "Better than clippy",
@@ -52,6 +64,7 @@
     "hubot-test-helper": "^1.5.1",
     "mocha": "^3.4.1",
     "nodemon": "^1.11.0",
+    "pre-git": "^3.14.0",
     "sinon": "^2.2.0",
     "ts-node": "^3.0.4",
     "tslint": "^5.2.0",

@@ -7,8 +7,8 @@
 // Configuration:
 //   HUBOT_URL=https://hubot.mydomain.com - The URL on which the bot's http interface is exposed
 //   HUBOT_GITLAB_URL=https://gitlab.com  - The URL of the gitlab instance to connect to.  Defaults to https://gitlab.com
-//   HUBOT_GITLAB_APP_ID=abcd2345....     - The Application ID generated at ${HUBOT_GITLAB_URL}/profile/applications
-//   HUBOT_GITLAB_APP_SECRET=1234abcd.... - The Application secret generated at ${HUBOT_GITLAB_URL}/profile/applications
+//   HUBOT_GITLAB_APP_ID=************     - The Application ID generated at ${HUBOT_GITLAB_URL}/profile/applications
+//   HUBOT_GITLAB_APP_SECRET=********     - The Application secret generated at ${HUBOT_GITLAB_URL}/profile/applications
 //
 // Commands:
 //   hubot gitlab sign in - Sends the a private link which grants the bot API access to your gitlab account.
