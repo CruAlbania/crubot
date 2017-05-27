@@ -27,6 +27,7 @@
     "coffee-script": "^1.12.6",
     "cron": "^1.2.1",
     "hubot": "git+https://github.com/CruAlbania/hubot.git",
+    "hubot-better-help": "^0.1.0",
     "hubot-gitter2": "git+https://github.com/huafu/hubot-gitter2.git#develop",
     "hubot-leveldb-brain": "0.0.7",
     "hubot-maps": "0.0.2",

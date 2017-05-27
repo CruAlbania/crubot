@@ -594,7 +594,7 @@ code-point-at@^1.0.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/code-point-at/-/code-point-at-1.1.0.tgz#0d070b4d043a5bea33a2f1a40e2edb3d9a4ccf77"
 
-coffee-script@1.6.3:
+coffee-script@1.6.3, coffee-script@~1.6:
   version "1.6.3"
   resolved "https://registry.yarnpkg.com/coffee-script/-/coffee-script-1.6.3.tgz#6355d32cf1b04cdff6b484e5e711782b2f0c39be"
 
@@ -1710,6 +1710,13 @@ http-signature@~1.1.0:
     assert-plus "^0.2.0"
     jsprim "^1.2.2"
     sshpk "^1.7.0"
+
+hubot-better-help@^0.1.0:
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/hubot-better-help/-/hubot-better-help-0.1.0.tgz#9a0cadff34788071391ba08cb96b93555d44e300"
+  dependencies:
+    coffee-script "~1.6"
+    stopwords "^0.0.5"
 
 "hubot-gitter2@git+https://github.com/huafu/hubot-gitter2.git#develop":
   version "0.1.3"

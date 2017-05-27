@@ -6,5 +6,6 @@
   "hubot-rules",
   "hubot-rss-reader",
   "hubot-youtube",
-  "hubot-shipit"
+  "hubot-shipit",
+  "hubot-better-help"
 ]
