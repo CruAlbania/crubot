@@ -2,4 +2,5 @@ node_modules
 .DS_Store*
 .hubot_history
 leveldb-brain/
+docker-compose.yaml
 scripts/**/*.js

@@ -1,0 +1,18 @@
+crubot:
+  build: .
+  volumes:
+    - ./:/root/crubot
+  environment:
+    - LEVELDB_PATH=/root/crubot/leveldb-brain
+    - HUBOT_GOOGLE_HANGOUTS_DOMAIN=cru.org
+    - HUBOT_EXTRA_MEMES=true
+    - HUBOT_GITTER2_TOKEN=*******
+    - HUBOT_YOUTUBE_API_KEY=*****
+    - HUBOT_GITLAB_APP_ID=******
+    - HUBOT_GITLAB_APP_SECRET=******
+    - HUBOT_SITE_CHECK_MIN_SCHEDULE_SECONDS=10
+    - HUBOT_URL=http://localhost:8080
+  ports:
+    - "8080:8080"
+  entrypoint: "/bin/bash"
+  command: "-c 'while true; do sleep 2; done'"
