@@ -89,31 +89,34 @@ module.exports = (robot: Robot) => {
       }
 
       // over 1000 chars - break it up
+      let currentBlock = []
       for (const str of context.strings) {
-        let currentBlock = []
         for (let i = 0; i < str.length; ) {
           const nextNewline = str.indexOf('\n', i)
           let thisLine: string
           if (nextNewline === -1) {
             thisLine = str.substring(i)
           } else {
-            thisLine = str.substring(i, nextNewline + 1)
+            thisLine = str.substring(i, nextNewline)
           }
           i = nextNewline + 1
 
           const blockLength = currentBlock.reduce((size, s) => size += s.length, 0)
           if (blockLength + thisLine.length > 1024) {
               // we would go over the limit.  Push it to the queue.
-            queue.push({ room: context.response.envelope.room, message: currentBlock.join() })
+            queue.push({ room: context.response.envelope.room, message: currentBlock.join('\n') })
             currentBlock = []
           }
           currentBlock.push(thisLine)
-        }
 
-        // push the remainder to the queue
-        if (currentBlock.length > 0) {
-          queue.push({ room: context.response.envelope.room, message: currentBlock.join() })
+          if (nextNewline === -1) {
+            break
+          }
         }
+      }
+      // push the remainder to the queue
+      if (currentBlock.length > 0) {
+        queue.push({ room: context.response.envelope.room, message: currentBlock.join('\n') })
       }
 
       if (!currentTimeout) {

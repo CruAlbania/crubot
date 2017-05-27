@@ -130,8 +130,9 @@ describe('preventGitterBan', () => {
       resp.reply('incoming long string!')
       let str = 'asdf\n'
       for (let i = 0; i < 20; i++) {
-        str += i + ': asasldfkjqwlkejrqlknvlkqwjer lkqwjefl qwejkrlqwkje lkfjqw eflkjq flkej \nq flkqwjelkwjqflkqwef lkwje flkqwje flqwkejflkqwjefqwelfk weflkjqwlkefjwe\n'
+        str += i + ': asasldfkjqwlkejrqlknvlkqwjer lkqwjefl qwejkrlqwkje lkfjqw eflkjq flkej \n\nq flkqwjelkwjqflkqwef lkwje flkqwje flqwkejflkqwjefqwelfk weflkjqwlkefjwe\n'
       }
+      str += 'ghij'
       resp.reply(str)
     })
 
@@ -158,11 +159,59 @@ describe('preventGitterBan', () => {
     // assert
     expect(room.messages).to.have.length(8, 'messages.length')
     expect(room.messages[1][1]).to.equal('@alice incoming long string!')
-    expect(room.messages[2][1]).to.have.length(994)
-    expect(room.messages[3][1]).to.have.length(983)
+    expect(room.messages[2][1]).to.have.length.greaterThan(900)
+    expect(room.messages[2][1]).to.have.length.lessThan(1000)
+    expect(room.messages[3][1]).to.have.length.greaterThan(900)
+    expect(room.messages[3][1]).to.have.length.lessThan(1000)
     expect(room.messages[4]).to.deep.equal(['alice', 'hubot echo hi'])
-    expect(room.messages[5][1]).to.have.length(988)
-    expect(room.messages[6]).to.deep.equal(['hubot', 'q flkqwjelkwjqflkqwef lkwje flkqwje flqwkejflkqwjefqwelfk weflkjqwlkefjwe\n'])
+    expect(room.messages[5][1]).to.have.length.greaterThan(900)
+    expect(room.messages[5][1]).to.have.length.lessThan(1000)
+    expect(room.messages[6]).to.deep.equal(['hubot', 'q flkqwjelkwjqflkqwef lkwje flkqwje flqwkejflkqwjefqwelfk weflkjqwlkefjwe\nghij'])
+    expect(room.messages[7]).to.deep.equal(['hubot', 'hi'])
+  })
+
+  it('should break up large string groups into multiple messages', async () => {
+    room.robot.respond(/do it/i, (resp: Response) => {
+      resp.reply('incoming long string!')
+      const strs = ['asdf']
+      for (let i = 0; i < 20; i++) {
+        strs.push(i + ': asasldfkjqwlkejrqlknvlkqwjer lkqwjefl qwejkrlqwkje lkfjqw eflkjq flkej \nq flkqwjelkwjqflkqwef lkwje flkqwje flqwkejflkqwjefqwelfk weflkjqwlkefjwe')
+      }
+      strs.push('ghij')
+      resp.reply(...strs)
+    })
+
+    this.clock = sinon.useFakeTimers()
+
+    await room.user.say('alice', 'hubot do it')
+    await wait(50)
+
+    // let it do the next chunk
+    this.clock.tick(2050)   // 2.05 seconds
+    await wait(50)
+
+    await room.user.say('alice', 'hubot echo hi')
+
+    this.clock.tick(4050)   // 4.05 seconds
+    await wait(50)
+
+    this.clock.tick(4050)   // 6.05 seconds
+    await wait(50)
+
+    this.clock.tick(4050)   // 6.05 seconds
+    await wait(50)
+
+    // assert
+    expect(room.messages).to.have.length(8, 'messages.length')
+    expect(room.messages[1][1]).to.equal('@alice incoming long string!')
+    expect(room.messages[2][1]).to.have.length.greaterThan(900)
+    expect(room.messages[2][1]).to.have.length.lessThan(1000)
+    expect(room.messages[3][1]).to.have.length.greaterThan(900)
+    expect(room.messages[3][1]).to.have.length.lessThan(1000)
+    expect(room.messages[4]).to.deep.equal(['alice', 'hubot echo hi'])
+    expect(room.messages[5][1]).to.have.length.greaterThan(900)
+    expect(room.messages[5][1]).to.have.length.lessThan(1000)
+    expect(room.messages[6]).to.deep.equal(['hubot', 'q flkqwjelkwjqflkqwef lkwje flkqwje flqwkejflkqwjefqwelfk weflkjqwlkefjwe\nghij'])
     expect(room.messages[7]).to.deep.equal(['hubot', 'hi'])
   })
 })
