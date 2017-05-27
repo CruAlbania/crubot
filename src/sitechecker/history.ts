@@ -43,7 +43,7 @@ export class History {
         timestamp: summary.timestamp,
         status: summary.status,
         url: summary.url,
-        linksChecked: new Map(summary.linksChecked),
+        linksChecked: Object.assign({}, summary.linksChecked),
         brokenLinks: summary.brokenLinks.map<IBrokenLinkWithHistory>((l) => Object.assign({ lastSuccess: 0}, l)),
       }
 
@@ -68,7 +68,7 @@ export class History {
    * Gets the last stored summary and the diff with the previous summary
    */
   public lastSummary(site: url.Url): { summary: ILinkCheckSummary, diff: IDiff } {
-    const key = makeKey(site)
+    const key = makeKey(url.format(site))
 
     const history = this.brain.get<IHistoryTuple>(key)
     if (!history) {
@@ -126,13 +126,13 @@ function internalDiff(summary: ILinkCheckSummary, prev: IHistoryTuple): IHistory
     timestamp: summary.timestamp,
     status: summary.status,
     url: summary.url,
-    linksChecked: new Map(summary.linksChecked),
+    linksChecked: Object.assign({}, summary.linksChecked),
     brokenLinks: [],
   }
 
   // find new links in this check that weren't present last time
-  for (const link of summary.linksChecked.keys()) {
-    if (!prev.summary.linksChecked.get(link)) {
+  for (const link in summary.linksChecked) {
+    if (!prev.summary.linksChecked[link]) {
       // it's new
       diff.newLinks.push(link)
     }
@@ -166,6 +166,6 @@ function internalDiff(summary: ILinkCheckSummary, prev: IHistoryTuple): IHistory
   }
 }
 
-function makeKey(id: url.Url): string {
-  return 'sitechecker.history.' + url.format(id)
+function makeKey(id: string): string {
+  return 'sitechecker.history.' + id
 }

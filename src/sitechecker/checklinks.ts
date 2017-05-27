@@ -15,9 +15,9 @@ export interface ILinkCheckSummary {
   /** The status of this run of the link checker - error, timeout, success */
   status: StatusCode
   /** The URL that started the check */
-  url: url.Url
+  url: string
   /** The links that have been checked */
-  linksChecked: Map<string, boolean>
+  linksChecked: { [key: string]: boolean }
 
   /** The broken links */
   brokenLinks: IBrokenLink[]
@@ -66,8 +66,8 @@ export function CheckLinks(robot: Robot, arg: url.Url, cb: CheckLinksCallback) {
     start: Date.now(),
     timestamp: 0,
     status: 0,
-    url: arg,
-    linksChecked: new Map<string, boolean>(),
+    url: url.format(arg),
+    linksChecked: {},
     brokenLinks: [] as IBrokenLink[],
   }
 
@@ -84,7 +84,7 @@ export function CheckLinks(robot: Robot, arg: url.Url, cb: CheckLinksCallback) {
     link: (result, customData) => {
       robot.logger.debug('link: ', result.url.resolved)
       if (result.broken) {
-        if (!summary.linksChecked.get(result.url.resolved)) {
+        if (!summary.linksChecked[result.url.resolved]) {
           summary.brokenLinks.push({
             url: result.url.resolved,
             reason: result.brokenReason,
@@ -94,7 +94,7 @@ export function CheckLinks(robot: Robot, arg: url.Url, cb: CheckLinksCallback) {
           })
         }
       }
-      summary.linksChecked.set(result.url.resolved, true)
+      summary.linksChecked[result.url.resolved] = true
     },
       // When the site is finished being checked, this gets called.
     site: (error, siteUrl, customData) => {

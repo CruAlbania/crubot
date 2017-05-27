@@ -210,7 +210,7 @@ module.exports = (robot: Robot) => {
         case StatusCode.timeout:
         {
           history.store(summary)
-          res.send(`Timed out checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
+          res.send(`Timed out checking ${Object.keys(summary.linksChecked).length} total links at ${summary.url}:  \n` +
                       `${summary.brokenLinks.length} broken links`)
 
           if (summary.brokenLinks.length > 0) {
@@ -222,7 +222,7 @@ module.exports = (robot: Robot) => {
         case StatusCode.success:
         {
           history.store(summary)
-          res.send(`Finished checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
+          res.send(`Finished checking ${Object.keys(summary.linksChecked).length} total links at ${summary.url}:  \n` +
                       `${summary.brokenLinks.length} broken links`)
 
           if (summary.brokenLinks.length > 0) {
@@ -419,7 +419,7 @@ module.exports = (robot: Robot) => {
           if (!diff) {
             // new link check - send header
             const finished = summary.status === StatusCode.timeout ? 'Timed out' : 'Finished'
-            head = `${finished} checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
+            head = `${finished} checking ${Object.keys(summary.linksChecked).length} total links at ${summary.url}:  \n` +
                       `${summary.brokenLinks.length} broken links`
           } else if (diff.newlyBrokenLinks.length === 0 && diff.newlyFixedLinks.length === 0) {
              // nothing to say
