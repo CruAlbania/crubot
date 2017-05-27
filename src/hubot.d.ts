@@ -81,7 +81,7 @@ export class Robot {
   /**
    * Sends a message to an explicitly named room or user.
    */
-  public messageRoom(room: string, message: string)
+  public messageRoom(room: string, ...message: string[])
 
   /**
    * Makes HTTP calls using node-scoped-http-client

@@ -210,28 +210,24 @@ module.exports = (robot: Robot) => {
         case StatusCode.timeout:
         {
           history.store(summary)
-          let resp = `Timed out checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
-                      `${summary.brokenLinks.length} broken links`
+          res.send(`Timed out checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
+                      `${summary.brokenLinks.length} broken links`)
 
           if (summary.brokenLinks.length > 0) {
-            resp += '  \n'
-            resp += formatBrokenLinkList(summary.brokenLinks)
+            res.send(formatBrokenLinkList(summary.brokenLinks).join('  \n'))
           }
-          res.send(resp)
           break
         }
 
         case StatusCode.success:
         {
           history.store(summary)
-          let resp = `Finished checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
-                      `${summary.brokenLinks.length} broken links`
+          res.send(`Finished checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
+                      `${summary.brokenLinks.length} broken links`)
 
           if (summary.brokenLinks.length > 0) {
-            resp += '  \n'
-            resp += formatBrokenLinkList(summary.brokenLinks)
+            res.send(formatBrokenLinkList(summary.brokenLinks).join('  \n'))
           }
-          res.send(resp)
           break
         }
 
@@ -419,38 +415,48 @@ module.exports = (robot: Robot) => {
         case StatusCode.success:
         {
           const diff = history.store(summary)
-          let resp: string
+          let head: string
           if (!diff) {
-            // new link check
+            // new link check - send header
             const finished = summary.status === StatusCode.timeout ? 'Timed out' : 'Finished'
-            resp = `${finished} checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
+            head = `${finished} checking ${summary.linksChecked.size} total links at ${url.format(summary.url)}:  \n` +
                       `${summary.brokenLinks.length} broken links`
-
-            if (summary.brokenLinks.length > 0) {
-              resp += '  \n'
-              resp += formatBrokenLinkList(summary.brokenLinks)
-            }
           } else if (diff.newlyBrokenLinks.length === 0 && diff.newlyFixedLinks.length === 0) {
              // nothing to say
              break
           } else {
             if (diff.newlyBrokenLinks.length > 0) {
               // add warning header
-              resp = `:x: Found broken links on ${argPretty}  \n`
+              head = `:x: Found broken links on ${argPretty}`
             } else if (diff.newlyFixedLinks.length > 0) {
-              resp = `:white_check_mark: Some links which were broken on ${argPretty} are now fixed.  \n`
+              head = `:white_check_mark: Some links which were broken on ${argPretty} are now fixed.`
             }
+          }
+            // send header
+          context.rooms.forEach((r) => {
+            robot.messageRoom(r, head)
+          })
+
+          let body: string[] = []
+          if (!diff) {
+            if (summary.brokenLinks.length > 0) {
+              body = formatBrokenLinkList(summary.brokenLinks)
+            }
+          } else {
             if (diff.newlyBrokenLinks.length > 0) {
-              resp += formatBrokenLinkList(diff.newlyBrokenLinks)
+              body.push(...formatBrokenLinkList(diff.newlyBrokenLinks))
             }
             if (diff.newlyFixedLinks.length > 0) {
-              resp += formatBrokenLinkList(diff.newlyFixedLinks)
+              body.push(...formatBrokenLinkList(diff.newlyFixedLinks))
             }
           }
 
-          context.rooms.forEach((r) => {
-            robot.messageRoom(r, resp)
-          })
+            // send body
+          if (body.length > 0) {
+            context.rooms.forEach((r) => {
+              robot.messageRoom(r, body.join('  \n'))
+            })
+          }
         }
         break
 
@@ -528,7 +534,7 @@ function validateCronSchedule(cronSchedule: string, minSeconds?: number): string
   }
 }
 
-function formatBrokenLinkList(brokenLinks: IBrokenLink[]): string {
+function formatBrokenLinkList(brokenLinks: IBrokenLink[]): string[] {
   const byBaseUrl = new Map<string, IBrokenLink[]>()
   for (const link of brokenLinks) {
     const base = byBaseUrl.get(link.from) || []
@@ -536,21 +542,22 @@ function formatBrokenLinkList(brokenLinks: IBrokenLink[]): string {
     byBaseUrl.set(link.from, base)
   }
 
-  let resp: string = ''
+  let resp: string[]
   if (brokenLinks.length > (2 * byBaseUrl.size)) {
+    resp = []
     // to summarize by base URL would result in a smaller output
     for (const base of byBaseUrl.keys()) {
-      resp += 'on page ' + base + ':'
+      resp.push('on page ' + base + ':')
       for (const l of byBaseUrl.get(base)) {
         let emoji = ':x:'
         if (l.statusCode >= 500) {
           emoji = ':exclamation:'
         }
-        resp += `  \n  * ${emoji} ${l.url} ${blc[l.reason]}`
+        resp.push(`  * ${emoji} ${l.url} ${blc[l.reason]}`)
       }
     }
   } else {
-    resp += brokenLinks.map((l) => {
+    resp = brokenLinks.map((l) => {
       let emoji: string
       if (!l.statusCode) {
         emoji = ':fire:'
@@ -563,7 +570,6 @@ function formatBrokenLinkList(brokenLinks: IBrokenLink[]): string {
       }
       return `  * ${emoji} ${l.url} ${blc[l.reason]} on page ${l.from}`
     })
-    .join('  \n')
   }
   return resp
 }

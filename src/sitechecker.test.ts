@@ -167,10 +167,10 @@ describe('hubot sitechecker', () => {
       expect(room.messages).to.deep.equal([
         ['alice', 'hubot check links http://localhost:8081 on schedule 0 0 * * * '],
         ['hubot', "Ok, I'll start checking http://localhost:8081/ for broken links on the schedule `0 0 * * *`" ],
-        ['hubot', 'Finished checking 2 total links at http://localhost:8081/:  \n1 broken links  \n' +
-                    '  * :x: http://localhost:8081/badLink Not Found (404) on page http://localhost:8081/'],
-        ['hubot', ':x: Found broken links on http://localhost:8081/  \n' +
-                    '  * :x: http://localhost:8081/goodLink Not Found (404) on page http://localhost:8081/'],
+        ['hubot', 'Finished checking 2 total links at http://localhost:8081/:  \n1 broken links'],
+        ['hubot', '  * :x: http://localhost:8081/badLink Not Found (404) on page http://localhost:8081/'],
+        ['hubot', ':x: Found broken links on http://localhost:8081/'],
+        ['hubot', '  * :x: http://localhost:8081/goodLink Not Found (404) on page http://localhost:8081/'],
       ])
     })
 
@@ -266,8 +266,8 @@ describe('hubot sitechecker', () => {
       expect(room.messages).to.deep.equal([
         ['alice', 'hubot check links http://localhost:8081 on schedule 0 0 * * * '],
         ['hubot', "Ok, I'll start checking http://localhost:8081/ for broken links on the schedule `0 0 * * *`" ],
-        ['hubot', 'Finished checking 2 total links at http://localhost:8081/:  \n1 broken links  \n' +
-                    '  * :x: http://localhost:8081/badLink Not Found (404) on page http://localhost:8081/'],
+        ['hubot', 'Finished checking 2 total links at http://localhost:8081/:  \n1 broken links'],
+        ['hubot', '  * :x: http://localhost:8081/badLink Not Found (404) on page http://localhost:8081/'],
         ['alice', 'hubot stop checking links http://localhost:8081'],
         ['hubot', "Ok, I'll stop checking http://localhost:8081/ for broken links."],
 

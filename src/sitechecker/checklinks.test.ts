@@ -152,8 +152,8 @@ describe('hubot check links', () => {
     expect(room.messages).to.deep.equal([
       [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links  \n' +
-                  '  * :x: http://localhost:8081/badlink Not Found (404) on page http://localhost:8081/' ],
+      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links'],
+      [ 'hubot', '  * :x: http://localhost:8081/badlink Not Found (404) on page http://localhost:8081/' ],
     ])
   })
 
@@ -177,8 +177,8 @@ describe('hubot check links', () => {
     expect(room.messages).to.deep.equal([
       [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 3 total links at http://localhost:8081/:  \n3 broken links  \n' +
-                  'on page http://localhost:8081/:  \n' +
+      [ 'hubot', 'Finished checking 3 total links at http://localhost:8081/:  \n3 broken links'],
+      [ 'hubot', 'on page http://localhost:8081/:  \n' +
                   '  * :x: http://localhost:8081/badlink Not Found (404)  \n' +
                   '  * :x: http://localhost:8081/badlink2 Not Found (404)  \n' +
                   '  * :x: http://localhost:8081/badlink3 Not Found (404)' ],
@@ -203,8 +203,8 @@ describe('hubot check links', () => {
     expect(room.messages).to.deep.equal([
       [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links  \n'  +
-                    '  * :fire: http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz/ no matching dns record (ENOTFOUND) on page http://localhost:8081/' ],
+      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links'],
+      [ 'hubot', '  * :fire: http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz/ no matching dns record (ENOTFOUND) on page http://localhost:8081/' ],
     ])
   })
 
@@ -226,8 +226,8 @@ describe('hubot check links', () => {
     expect(room.messages).to.deep.equal([
       [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links  \n' +
-                    '  * :fire: http://localhost:9999/ connection refused (ECONNREFUSED) on page http://localhost:8081/' ],
+      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links'],
+      [ 'hubot', '  * :fire: http://localhost:9999/ connection refused (ECONNREFUSED) on page http://localhost:8081/' ],
     ])
   })
 
@@ -274,8 +274,8 @@ describe('hubot check links', () => {
     expect(room.messages).to.deep.equal([
       [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links  \n'  +
-                  '  * :exclamation: http://localhost:8081/link500 Internal Server Error (500) on page http://localhost:8081/' ],
+      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links'],
+      [ 'hubot', '  * :exclamation: http://localhost:8081/link500 Internal Server Error (500) on page http://localhost:8081/' ],
     ])
   })
 
@@ -326,8 +326,8 @@ describe('hubot check links', () => {
     expect(room.messages).to.deep.equal([
       [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links  \n' +
-                   '  * :fire: http://localhost:8081/linktimeout connection reset by peer (ECONNRESET) on page http://localhost:8081/' ],
+      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links'],
+      [ 'hubot', '  * :fire: http://localhost:8081/linktimeout connection reset by peer (ECONNRESET) on page http://localhost:8081/' ],
     ])
   })
 
@@ -364,8 +364,8 @@ describe('hubot check links', () => {
     expect(room.messages).to.deep.equal([
       [ 'alice', 'hubot check links http://localhost:8081' ],
       [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Timed out checking 2 total links at http://localhost:8081/:  \n1 broken links  \n' +
-                    '  * :x: http://localhost:8081/badlink Not Found (404) on page http://localhost:8081/' ],
+      [ 'hubot', 'Timed out checking 2 total links at http://localhost:8081/:  \n1 broken links'],
+      [ 'hubot', '  * :x: http://localhost:8081/badlink Not Found (404) on page http://localhost:8081/' ],
     ])
   })// .timeout(2100)
 
