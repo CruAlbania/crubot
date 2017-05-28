@@ -154,14 +154,17 @@ describe('hubot sitechecker', () => {
         // should do a first check immediately...
       await wait(10)
       this.clock.tick(100)
-      await wait(50)
+      await wait(100)
 
         // now pretend the link breaks
       ok = false
 
         // now run the timer one day so it checks again...
       this.clock.tick(24 * 60 * 60 * 1000)    // puts us at 12:00:01 am tomorrow
-      await wait(50)
+      await wait(100)
+        // and one more second so we process the send queue...
+      this.clock.tick(2 * 1000)
+      await wait(10)
 
       // assert
       expect(room.messages).to.deep.equal([
@@ -172,6 +175,44 @@ describe('hubot sitechecker', () => {
         ['hubot', ':x: Found broken links on http://localhost:8081/'],
         ['hubot', '  * :x: http://localhost:8081/goodLink Not Found (404) on page http://localhost:8081/'],
       ])
+    })
+
+    it('should queue up responses when theres a lot of bad links', async () => {
+        // set the fake clock to 12:00:01 AM today
+      const start = moment().startOf('day').add(1, 'second').toDate().getTime()
+      this.clock = sinon.useFakeTimers(start)
+      app.get('/', (req, res) => {
+        let str = '<html><body><h1>Hello World!</h1>'
+        for (let i = 0; i < 50; i++) {
+          str += `<a href="/badLink${i}">${i}</a>`
+        }
+        str += '</body></html>'
+        res.send(str)
+      })
+
+      // act
+      await room.user.say('alice', 'hubot check links http://localhost:8081 on schedule 0 0 * * * ')
+        // should do a first check immediately...
+      await wait(10)
+      this.clock.tick(100)
+      await wait(200)
+
+      // assert
+      expect(room.messages).to.deep.equal([
+        ['alice', 'hubot check links http://localhost:8081 on schedule 0 0 * * * '],
+        ['hubot', "Ok, I'll start checking http://localhost:8081/ for broken links on the schedule `0 0 * * *`" ],
+        ['hubot', 'Finished checking 50 total links at http://localhost:8081/:  \n50 broken links'],
+      ])
+
+      this.clock.tick(1000)
+      await wait(50)
+      expect(room.messages).to.have.length(4, 'should add one more message')
+      expect(room.messages[3][1]).to.have.length.greaterThan(1900, 'messages[3][1]')
+      expect(room.messages[3][1]).to.have.length.lessThan(2048, 'messages[3][1]')
+
+      this.clock.tick(1000)
+      await wait(50)
+      expect(room.messages).to.have.length(5, 'should add one more message')
     })
 
     it('should not register a second job if already scheduled for that url', async () => {
@@ -253,6 +294,8 @@ describe('hubot sitechecker', () => {
       // should do a first check immediately...
       await wait(10)
       this.clock.tick(100)
+      await wait(50)
+      this.clock.tick(1100) // let it process the send queue
       await wait(50)
 
       // act

@@ -214,7 +214,9 @@ module.exports = (robot: Robot) => {
                       `${summary.brokenLinks.length} broken links`)
 
           if (summary.brokenLinks.length > 0) {
-            res.send(formatBrokenLinkList(summary.brokenLinks).join('  \n'))
+            pushSendQueue(formatBrokenLinkList(summary.brokenLinks),
+              (lines) => res.send(lines.join('  \n')),
+            )
           }
           break
         }
@@ -226,7 +228,9 @@ module.exports = (robot: Robot) => {
                       `${summary.brokenLinks.length} broken links`)
 
           if (summary.brokenLinks.length > 0) {
-            res.send(formatBrokenLinkList(summary.brokenLinks).join('  \n'))
+            pushSendQueue(formatBrokenLinkList(summary.brokenLinks),
+              (lines) => res.send(lines.join('  \n')),
+            )
           }
           break
         }
@@ -433,9 +437,9 @@ module.exports = (robot: Robot) => {
             }
           }
             // send header
-          context.rooms.forEach((r) => {
-            robot.messageRoom(r, head)
-          })
+          context.rooms.forEach((r) =>
+            robot.messageRoom(r, head),
+          )
 
           let body: string[] = []
           if (!diff) {
@@ -451,11 +455,13 @@ module.exports = (robot: Robot) => {
             }
           }
 
-            // send body
+            // send body using the send queue because it could be long
           if (body.length > 0) {
-            context.rooms.forEach((r) => {
-              robot.messageRoom(r, body.join('  \n'))
-            })
+            pushSendQueue(body, (lines) =>
+              context.rooms.forEach((r) =>
+                robot.messageRoom(r, lines.join('  \n')),
+              ),
+            )
           }
         }
         break
@@ -465,6 +471,52 @@ module.exports = (robot: Robot) => {
           break
       }
     })
+  }
+
+  let sendQueue = new Array<{sender: (lines: string[]) => void, lines: string[]}>()
+  let processingSendQueue: NodeJS.Timer
+
+  function pushSendQueue(lines: string[], sender: (lines: string[]) => void) {
+    // push to the send queue every block of lines less than 2048 characters in length
+    let block: string[] = []
+    let i = 0
+    for (const str of lines) {
+      i += str.length + 4  //  space-space-newline = 4 chars
+      if (i >= 2048) {
+        sendQueue.push({
+          lines: block,
+          sender,
+        })
+        block = []
+        i = str.length + 4
+      }
+
+      block.push(str)
+    }
+    sendQueue.push({
+      lines: block,
+      sender,
+    })
+
+    if (!processingSendQueue) {
+      processingSendQueue = setTimeout(processSendQueue, 1000)
+    }
+  }
+
+  function processSendQueue() {
+    if (sendQueue.length === 0) {
+      processingSendQueue = undefined
+      return
+    }
+
+    const {sender, lines} = sendQueue[0]
+    try {
+      sender(lines)
+    } catch (error) {
+      robot.logger.error('[sitechecker]: Error processing send queue: ', error, '\nlines:\n', lines)
+    }
+    sendQueue = sendQueue.slice(1)
+    processingSendQueue = setTimeout(processSendQueue, 1000)
   }
 
 }// end module.exports = (robot: Robot) => {}

@@ -1,9 +1,13 @@
 // tslint:disable:no-var-requires
+// tslint:disable:no-unused-expression
 import * as chai from 'chai'
 import * as express from 'express'
 import { Server } from 'http'
-import { Robot } from '../hubot'
+import * as url from 'url'
 const expect = chai.expect
+
+import { Robot } from '../hubot'
+import { CheckLinks, ILinkCheckSummary, StatusCode } from './checklinks'
 
   // hubot-test-helper uses a reference to module.parent.filename to find hubot script files.
   // this screws with tests that are in different different directories - whichever is required first sets the module.
@@ -35,81 +39,67 @@ describe('hubot check links', () => {
     server.close(done)
   })
 
-  it('should show error result for unreachable host', async () => {
+  it('should show error result for unreachable host', (done) => {
 
     // act
-    const p = new Promise((resolve, reject) => {
-      room.robot.on('link-check.error', (err) => resolve())
+    CheckLinks(room.robot, url.parse('http://localhost:9999'), (error: any, summary) => {
+
+      // assert
+      expect(error).to.have.property('code', 'ECONNREFUSED')
+      expect(error).to.have.property('address', '127.0.0.1')
+      expect(error).to.have.property('port', 9999)
+      expect(summary).to.have.property('status', StatusCode.error)
+
+      done()
     })
-    await room.user.say('alice', 'hubot check links http://localhost:9999')
-    await p
-    await wait(10)
-
-    // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:9999' ],
-      [ 'hubot', 'BRB, checking http://localhost:9999/ for broken links...' ],
-      [ 'hubot', 'Got an error when checking http://localhost:9999/:  \n\n> The connection to 127.0.0.1:9999 was refused' ],
-
-    ])
   })
 
-  it('should show error result for bad domain', async () => {
+  it('should show error result for bad domain', (done) => {
 
     // act
-    await room.user.say('alice', 'hubot check links http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    CheckLinks(room.robot, url.parse('http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz'), (error: any, summary) => {
 
-    // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz' ],
-      [ 'hubot', 'BRB, checking http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz/ for broken links...' ],
-      [ 'hubot', 'Got an error when checking http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz/:  \n\n> The hostname afsdlkqjewlkrjqkvnq23rjakjsdf.zzz could not be resolved' ],
-    ])
+      // assert
+      expect(error.code).to.equal('ENOTFOUND')
+      expect(summary).to.have.property('status', StatusCode.error)
+
+      done()
+    })
   })
 
-  it('should handle 404', async () => {
+  it('should handle 404', (done) => {
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081/asdfqkjwelrkjr')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    CheckLinks(room.robot, url.parse('http://localhost:8081/asdfqkjwelrkjr'), (error, summary) => {
 
-    // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081/asdfqkjwelrkjr' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/asdfqkjwelrkjr for broken links...' ],
-      [ 'hubot', 'Got an error when checking http://localhost:8081/asdfqkjwelrkjr:  \n\n> 404: Not Found' ],
-    ])
+      // assert
+      expect(error).to.have.property('code', 404)
+      expect(summary).to.have.property('status', StatusCode.error)
+
+      done()
+    })
   })
 
-  it('should handle single page site', async () => {
+  it('should handle single page site', (done) => {
     app.get('/', (req, res) => {
       res.send('<html><body><h1>Hello World!</h1></body></html>')
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, summary) => {
 
-    // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 0 total links at http://localhost:8081/:  \n0 broken links' ],
-    ])
+      // assert
+      expect(error).to.be.undefined
+      expect(summary).to.have.property('status', StatusCode.success)
+      expect(summary.brokenLinks).to.deep.equal([], 'summary.brokenLinks')
+      expect(Object.keys(summary.linksChecked)).to.have.length(0, 'summary.linksChecked')
+
+      done()
+    })
 
   })
 
-  it('should handle site with one working link', async () => {
+  it('should handle site with one working link', (done) => {
     app.get('/', (req, res) => {
       res.send('<html><body><h1>Hello World!</h1>' +
         '<a href="/goodlink"></a>' +
@@ -120,18 +110,16 @@ describe('hubot check links', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, summary) => {
 
-    // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n0 broken links' ],
-    ])
+      // assert
+      expect(error).to.be.undefined
+      expect(summary).to.have.property('status', StatusCode.success)
+      expect(summary.brokenLinks).to.deep.equal([], 'summary.brokenLinks')
+      expect(Object.keys(summary.linksChecked)).to.have.length(1, 'summary.linksChecked')
+
+      done()
+    })
   })
 
   it('should handle broken link', async () => {
@@ -142,19 +130,18 @@ describe('hubot check links', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    const summary = await new Promise<ILinkCheckSummary>((resolve, reject) => {
+        CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, s) => {
+          if (error) { reject(error) } else { resolve(s) }
+        })
+      })
 
     // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links'],
-      [ 'hubot', '  * :x: http://localhost:8081/badlink Not Found (404) on page http://localhost:8081/' ],
-    ])
+    expect(summary).to.have.property('status', StatusCode.success)
+    expect(summary.brokenLinks).to.deep.equal([
+       { from: 'http://localhost:8081/', reason: 'HTTP_404', statusCode: 404, statusMessage: 'Not Found', url: 'http://localhost:8081/badlink' },
+      ], 'summary.brokenLinks')
+    expect(Object.keys(summary.linksChecked)).to.have.length(1, 'summary.linksChecked')
   })
 
   it('should handle multiple broken links', async () => {
@@ -167,22 +154,20 @@ describe('hubot check links', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    const summary = await new Promise<ILinkCheckSummary>((resolve, reject) => {
+        CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, s) => {
+          if (error) { reject(error) } else { resolve(s) }
+        })
+      })
 
     // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 3 total links at http://localhost:8081/:  \n3 broken links'],
-      [ 'hubot', 'on page http://localhost:8081/:  \n' +
-                  '  * :x: http://localhost:8081/badlink Not Found (404)  \n' +
-                  '  * :x: http://localhost:8081/badlink2 Not Found (404)  \n' +
-                  '  * :x: http://localhost:8081/badlink3 Not Found (404)' ],
-    ])
+    expect(summary).to.have.property('status', StatusCode.success)
+    expect(summary.brokenLinks).to.deep.equal([
+      { from: 'http://localhost:8081/', reason: 'HTTP_404', statusCode: 404, statusMessage: 'Not Found', url: 'http://localhost:8081/badlink' },
+      { from: 'http://localhost:8081/', reason: 'HTTP_404', statusCode: 404, statusMessage: 'Not Found', url: 'http://localhost:8081/badlink2' },
+      { from: 'http://localhost:8081/', reason: 'HTTP_404', statusCode: 404, statusMessage: 'Not Found', url: 'http://localhost:8081/badlink3' },
+      ], 'summary.brokenLinks')
+    expect(Object.keys(summary.linksChecked)).to.have.length(3, 'summary.linksChecked')
   })
 
   it('should handle link to unresolvable domain', async () => {
@@ -193,19 +178,18 @@ describe('hubot check links', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    const summary = await new Promise<ILinkCheckSummary>((resolve, reject) => {
+        CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, s) => {
+          if (error) { reject(error) } else { resolve(s) }
+        })
+      })
 
     // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links'],
-      [ 'hubot', '  * :fire: http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz/ no matching dns record (ENOTFOUND) on page http://localhost:8081/' ],
-    ])
+    expect(summary).to.have.property('status', StatusCode.success)
+    expect(summary.brokenLinks).to.deep.equal([
+      { from: 'http://localhost:8081/', reason: 'ERRNO_ENOTFOUND', statusCode: '', statusMessage: '', url: 'http://afsdlkqjewlkrjqkvnq23rjakjsdf.zzz/' },
+      ], 'summary.brokenLinks')
+    expect(Object.keys(summary.linksChecked)).to.have.length(1, 'summary.linksChecked')
   })
 
   it('should handle link to unreachable host', async () => {
@@ -216,43 +200,38 @@ describe('hubot check links', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    const summary = await new Promise<ILinkCheckSummary>((resolve, reject) => {
+        CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, s) => {
+          if (error) { reject(error) } else { resolve(s) }
+        })
+      })
 
     // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links'],
-      [ 'hubot', '  * :fire: http://localhost:9999/ connection refused (ECONNREFUSED) on page http://localhost:8081/' ],
-    ])
+    expect(summary).to.have.property('status', StatusCode.success)
+    expect(summary.brokenLinks).to.deep.equal([
+      { from: 'http://localhost:8081/', reason: 'ERRNO_ECONNREFUSED', statusCode: '', statusMessage: '', url: 'http://localhost:9999/' },
+      ], 'summary.brokenLinks')
+    expect(Object.keys(summary.linksChecked)).to.have.length(1, 'summary.linksChecked')
   })
 
-  it('should handle 500 server error', async () => {
+  it('should handle 500 server error', (done) => {
     app.get('/', (req, res) => {
       res.status(500)
       res.send('<html><body><h1>This page broke!</h1></body></html>')
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, summary) => {
 
-    // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Got an error when checking http://localhost:8081/:  \n\n> 500: Internal Server Error' ],
-    ])
+      // assert
+      expect(error).to.have.property('code', 500)
+      expect(summary).to.have.property('status', StatusCode.error)
+
+      done()
+    })
   })
 
-  it('should handle link with 500 server error', async () => {
+  it('should handle link with 500 server error', (done) => {
     app.get('/', (req, res) => {
       res.send('<html><body><h1>Hello World!</h1>' +
         '<a href="/link500"></a>' +
@@ -264,23 +243,22 @@ describe('hubot check links', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, summary) => {
 
-    // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links'],
-      [ 'hubot', '  * :exclamation: http://localhost:8081/link500 Internal Server Error (500) on page http://localhost:8081/' ],
-    ])
+      // assert
+      expect(error).to.be.undefined
+      expect(summary).to.have.property('status', StatusCode.success)
+      expect(summary.brokenLinks).to.deep.equal([
+        { from: 'http://localhost:8081/', reason: 'HTTP_500', statusCode: 500, statusMessage: 'Internal Server Error', url: 'http://localhost:8081/link500' },
+        ], 'summary.brokenLinks')
+      expect(Object.keys(summary.linksChecked)).to.have.length(1, 'summary.linksChecked')
+
+      done()
+    })
   })
 
     // takes ~130 seconds
-  longRunning('should handle connection timeout', async () => {
+  longRunning('should handle connection timeout', (done) => {
     app.get('/', (req, res) => {
       res.status(200)
       res.write('')
@@ -288,22 +266,16 @@ describe('hubot check links', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, summary) => {
 
-    // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Got an error when checking http://localhost:8081/:  \n\n> Error: socket hang up' ],
-    ])
+      // assert
+      expect(error.message).to.equal('Error: socket hang up')
+      done()
+    })
   })
 
     // takes ~130 seconds
-  longRunning('should handle link timeout', async () => {
+  longRunning('should handle link timeout', (done) => {
     app.get('/', (req, res) => {
       res.send('<html><body><h1>Hello World!</h1>' +
         '<a href="/linktimeout"></a>' +
@@ -316,23 +288,23 @@ describe('hubot check links', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, summary) => {
 
-    // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 1 total links at http://localhost:8081/:  \n1 broken links'],
-      [ 'hubot', '  * :fire: http://localhost:8081/linktimeout connection reset by peer (ECONNRESET) on page http://localhost:8081/' ],
-    ])
+      // assert
+      expect(error).to.be.undefined
+
+      expect(summary).to.have.property('status', StatusCode.success)
+      expect(summary.brokenLinks).to.deep.equal([
+        { from: 'http://localhost:8081/', reason: 'ERRNO_ECONNRESET', statusCode: '', statusMessage: '', url: 'http://localhost:8081/linktimeout' },
+        ], 'summary.brokenLinks')
+      expect(Object.keys(summary.linksChecked)).to.have.length(1, 'summary.linksChecked')
+
+      done()
+    })
   })
 
   // long running
-  it('should properly time out after HUBOT_LINK_CHECKER_TIMEOUT_SECONDS', async () => {
+  it('should properly time out after HUBOT_LINK_CHECKER_TIMEOUT_SECONDS', (done) => {
       // set timeout to 1 second
     process.env.HUBOT_LINK_CHECKER_TIMEOUT_SECONDS = '1'
 
@@ -354,50 +326,53 @@ describe('hubot check links', () => {
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(20)
+    CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, summary) => {
 
-    // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Timed out checking 2 total links at http://localhost:8081/:  \n1 broken links'],
-      [ 'hubot', '  * :x: http://localhost:8081/badlink Not Found (404) on page http://localhost:8081/' ],
-    ])
-  })// .timeout(2100)
+      // assert
+      expect(error.message).to.equal('timeout')
+
+      expect(summary).to.have.property('status', StatusCode.timeout)
+      expect(summary.brokenLinks).to.deep.equal([
+        { from: 'http://localhost:8081/', reason: 'HTTP_404', statusCode: 404, statusMessage: 'Not Found', url: 'http://localhost:8081/badlink' },
+        ], 'summary.brokenLinks')
+      expect(Object.keys(summary.linksChecked)).to.have.length(2, 'summary.linksChecked')
+
+      done()
+    })
+
+  }).timeout(2100)
 
   // Tests a bug in parse5 which causes BrokenLinkChecker to fail.
   // https://github.com/inikulin/parse5/issues/197
   // https://github.com/stevenvachon/broken-link-checker/issues/71
   // fixed in broken-link-checker 0.7.6
-  it('should handle interesting html', async () => {
+  it('should handle interesting html', (done) => {
     app.get('/', (req, res) => {
       res.send('<html><body><a href="#"><p></a></body></html>')
     })
 
     // act
-    await room.user.say('alice', 'hubot check links http://localhost:8081')
-    await new Promise((resolve, reject) => {
-      room.robot.on('link-check.end', (urls) => resolve())
-    })
-    await wait(10)
+    CheckLinks(room.robot, url.parse('http://localhost:8081'), (error, summary) => {
 
-    // assert
-    expect(room.messages).to.deep.equal([
-      [ 'alice', 'hubot check links http://localhost:8081' ],
-      [ 'hubot', 'BRB, checking http://localhost:8081/ for broken links...' ],
-      [ 'hubot', 'Finished checking 0 total links at http://localhost:8081/:  \n0 broken links' ],
-    ])
+      // assert
+      expect(error).to.be.undefined
+
+      expect(summary).to.have.property('status', StatusCode.success)
+      expect(summary.brokenLinks).to.deep.equal([
+        ], 'summary.brokenLinks')
+      expect(Object.keys(summary.linksChecked)).to.have.length(0, 'summary.linksChecked')
+
+      done()
+    })
   })
 
 })
 
+// since we might override setTimeout with sinon timers, capture it here and use it instead
+const origSetTimeout = setTimeout
 function wait(milliseconds: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    setTimeout(() => {
+    origSetTimeout(() => {
       resolve()
     }, milliseconds)
   })

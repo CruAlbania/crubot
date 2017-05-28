@@ -73,11 +73,12 @@ module.exports = (robot: Robot) => {
   )
 
     // break up large strings
+  const STRING_LENGTH_LIMIT = (1024 * 4) - 100  // 4kb minus some
 
   robot.responseMiddleware(
     (context, next, done) => {
       const length = context.strings.reduce((size, s) => size += s.length, 0)
-      if (length < 1024) {
+      if (length < STRING_LENGTH_LIMIT) {
         // if we're processing a queue, drop this at the end
         if (queue.length > 0) {
           queue.push({ room: context.response.envelope.room, message: context.strings.join()})
@@ -102,7 +103,7 @@ module.exports = (robot: Robot) => {
           i = nextNewline + 1
 
           const blockLength = currentBlock.reduce((size, s) => size += s.length, 0)
-          if (blockLength + thisLine.length > 1024) {
+          if (blockLength + thisLine.length > STRING_LENGTH_LIMIT) {
               // we would go over the limit.  Push it to the queue.
             queue.push({ room: context.response.envelope.room, message: currentBlock.join('\n') })
             currentBlock = []

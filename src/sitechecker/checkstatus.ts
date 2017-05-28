@@ -59,7 +59,6 @@ export class StatusChecker {
     }
 
     if (isBroken(resp.statusCode)) {
-      console.log('brokenLink', resp.statusCode)
       ret.error = `${resp.statusCode} (${resp.statusMessage})`
 
       if (!last || !last.error) {
