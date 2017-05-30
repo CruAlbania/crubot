@@ -41,6 +41,7 @@
     "leveldown": "^1.7.0",
     "moment": "^2.18.1",
     "request": "^2.81.0",
+    "request-promise-native": "^1.0.4",
     "stopwords": "^0.0.5",
     "uuid": "^3.0.1"
   },
