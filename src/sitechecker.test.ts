@@ -172,7 +172,7 @@ describe('hubot sitechecker', () => {
         ['hubot', "Ok, I'll start checking http://localhost:8081/ for broken links on the schedule `0 0 * * *`" ],
         ['hubot', 'Finished checking 2 total links at http://localhost:8081/:  \n1 broken links'],
         ['hubot', '  * :x: http://localhost:8081/badLink Not Found (404) on page http://localhost:8081/'],
-        ['hubot', ':x: Found broken links on http://localhost:8081/'],
+        ['hubot', ':x: Found 1 broken links on http://localhost:8081/'],
         ['hubot', '  * :x: http://localhost:8081/goodLink Not Found (404) on page http://localhost:8081/'],
       ])
     })
@@ -196,6 +196,8 @@ describe('hubot sitechecker', () => {
       await wait(10)
       this.clock.tick(100)
       await wait(200)
+      this.clock.tick(100)
+      await wait(10)
 
       // assert
       expect(room.messages).to.deep.equal([
@@ -223,8 +225,12 @@ describe('hubot sitechecker', () => {
 
       // act
       await room.user.say('alice', 'hubot check links http://localhost:8081/health on schedule   0 0 */3 * *')
+      this.clock.tick(50)   // run the site check async
       await wait(50)
+      this.clock.tick(10)   // process the send queue async
+      await wait(10)
       await room.user.say('alice', 'hubot check links http://localhost:8081/health on schedule 0 0 */5 * * ')
+      this.clock.tick(50)   // let the hubot respond
       await wait(50)
 
       // assert
@@ -249,9 +255,15 @@ describe('hubot sitechecker', () => {
 
       // act
       await room.user.say('alice', 'hubot check links http://localhost:8081/health on schedule   0 0 */3 * *')
+      this.clock.tick(50)
       await wait(50)
+      this.clock.tick(10)
+      await wait(10)
       await room.user.say('alice', 'hubot check links http://localhost:8081/health2 on schedule 0 0 */5 * * ')
-      await wait(50)
+      this.clock.tick(1000)
+      await wait(10)
+      this.clock.tick(10)
+      await wait(10)
 
       // assert
       expect(room.messages).to.deep.equal([

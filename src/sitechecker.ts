@@ -210,8 +210,11 @@ module.exports = (robot: Robot) => {
         case StatusCode.timeout:
         {
           history.store(summary)
-          res.send(`Timed out checking ${Object.keys(summary.linksChecked).length} total links at ${summary.url}:  \n` +
-                      `${summary.brokenLinks.length} broken links`)
+          const head = [`Timed out checking ${Object.keys(summary.linksChecked).length} total links at ${summary.url}:`,
+                      `${summary.brokenLinks.length} broken links`]
+          pushSendQueue(head,
+            (lines) => res.send(lines.join('  \n')),
+          )
 
           if (summary.brokenLinks.length > 0) {
             pushSendQueue(formatBrokenLinkList(summary.brokenLinks),
@@ -224,8 +227,11 @@ module.exports = (robot: Robot) => {
         case StatusCode.success:
         {
           history.store(summary)
-          res.send(`Finished checking ${Object.keys(summary.linksChecked).length} total links at ${summary.url}:  \n` +
-                      `${summary.brokenLinks.length} broken links`)
+          const head = [`Finished checking ${Object.keys(summary.linksChecked).length} total links at ${summary.url}:`,
+                      `${summary.brokenLinks.length} broken links`]
+          pushSendQueue(head,
+            (lines) => res.send(lines.join('  \n')),
+          )
 
           if (summary.brokenLinks.length > 0) {
             pushSendQueue(formatBrokenLinkList(summary.brokenLinks),
@@ -419,26 +425,28 @@ module.exports = (robot: Robot) => {
         case StatusCode.success:
         {
           const diff = history.store(summary)
-          let head: string
+          let head: string[]
           if (!diff) {
             // new link check - send header
             const finished = summary.status === StatusCode.timeout ? 'Timed out' : 'Finished'
-            head = `${finished} checking ${Object.keys(summary.linksChecked).length} total links at ${summary.url}:  \n` +
-                      `${summary.brokenLinks.length} broken links`
+            head = [`${finished} checking ${Object.keys(summary.linksChecked).length} total links at ${summary.url}:`,
+                      `${summary.brokenLinks.length} broken links`]
           } else if (diff.newlyBrokenLinks.length === 0 && diff.newlyFixedLinks.length === 0) {
              // nothing to say
              break
           } else {
             if (diff.newlyBrokenLinks.length > 0) {
               // add warning header
-              head = `:x: Found broken links on ${argPretty}`
+              head = [`:x: Found ${diff.newlyBrokenLinks.length} broken links on ${argPretty}`]
             } else if (diff.newlyFixedLinks.length > 0) {
-              head = `:white_check_mark: Some links which were broken on ${argPretty} are now fixed.`
+              head = [`:white_check_mark: ${diff.newlyFixedLinks} links which were broken on ${argPretty} are now fixed.`]
             }
           }
             // send header
-          context.rooms.forEach((r) =>
-            robot.messageRoom(r, head),
+          pushSendQueue(head, (lines) =>
+            context.rooms.forEach((r) =>
+              robot.messageRoom(r, lines.join('  \n')),
+            ),
           )
 
           let body: string[] = []
@@ -499,7 +507,7 @@ module.exports = (robot: Robot) => {
     })
 
     if (!processingSendQueue) {
-      processingSendQueue = setTimeout(processSendQueue, 1000)
+      processingSendQueue = setTimeout(processSendQueue, 1)
     }
   }
 
@@ -510,12 +518,12 @@ module.exports = (robot: Robot) => {
     }
 
     const {sender, lines} = sendQueue[0]
+    sendQueue = sendQueue.slice(1)
     try {
       sender(lines)
     } catch (error) {
       robot.logger.error('[sitechecker]: Error processing send queue: ', error, '\nlines:\n', lines)
     }
-    sendQueue = sendQueue.slice(1)
     processingSendQueue = setTimeout(processSendQueue, 1000)
   }
 
