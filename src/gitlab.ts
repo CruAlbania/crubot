@@ -21,6 +21,7 @@
 //   gburgett
 
 import {OAuthListener} from './gitlab/oauth'
+import { WebhooksListener } from './gitlab/webhooks'
 import { Robot } from './hubot'
 
 const HUBOT_URL = process.env.HUBOT_URL
@@ -44,11 +45,6 @@ module.exports = (robot: Robot) => {
   robot.respond(/gitlab sign in/i, { id: 'gitlab.sign_in' }, oauth.signin)
   robot.respond(/gitlab sign out/i, { id: 'gitlab.sign_out' }, oauth.signout)
 
-  robot.error((err, res) => {
-    robot.logger.error('DOES NOT COMPUTE')
-
-    if (res) {
-      res.reply('DOES NOT COMPUTE')
-    }
-  })
+  const webhooks = new WebhooksListener({}, robot)
+  robot.router.use('/gitlab/webhook', webhooks.router())
 }

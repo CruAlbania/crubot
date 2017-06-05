@@ -71,7 +71,7 @@ export class OAuthListener {
 
   private hashes = new Map<string, { hash: string, expires: number }>()
 
-  constructor(options: OAuthListenerOptions, robot: Robot, store?: Brain) {
+  constructor(options: OAuthListenerOptions, robot: Robot) {
     this.options = options
     this.robot = robot
 
