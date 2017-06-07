@@ -2,6 +2,7 @@
 import * as chai from 'chai'
 import * as express from 'express'
 import * as fs from 'fs'
+import * as path from 'path'
 import * as request from 'request'
 import * as url from 'url'
 const expect = chai.expect
@@ -12,7 +13,7 @@ const expect = chai.expect
 delete require.cache[require.resolve('hubot-test-helper')]
 // tslint:disable-next-line:no-var-requires
 const Helper = require('hubot-test-helper')
-const helper = new Helper('../gitlab.ts')
+const helper = new Helper([])
 
 describe('gitlab webhooks', () => {
   let room: any
@@ -23,10 +24,12 @@ describe('gitlab webhooks', () => {
 
   afterEach(() => {
     room.destroy()
+    delete(process.env.HUBOT_GITLAB_WEBHOOK_TOKEN)
   })
 
   describe('pipeline', () => {
     it('should message specified room on pipeline success webhook', (done) => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
       const hookData = testBody()
 
       // act
@@ -51,6 +54,8 @@ describe('gitlab webhooks', () => {
     })
 
     it('should message specified room on pipeline failure webhook', (done) => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
       const hookData = testBody()
       hookData.object_attributes.status = 'failed'
       hookData.builds.push({
@@ -105,11 +110,165 @@ describe('gitlab webhooks', () => {
 
     it('should not message room on subsequent successes')
 
-    it('should reject webhook with bad x-gitlab-token')
+    it('should reject webhook with bad x-gitlab-token', (done) => {
+      process.env.HUBOT_GITLAB_WEBHOOK_TOKEN = 'test_1234'
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
 
-    it('should reject malformed webhook')
+      const hookData = testBody()
 
-    it('should ignore webhook for non-selected event')
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+            'x-gitlab-token': 'bad',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 403)
+
+          expect(room.messages).to.deep.equal([
+            // nothing
+          ])
+          done()
+        },
+      )
+    })
+
+    it('should reject webhook with no x-gitlab-token', (done) => {
+      process.env.HUBOT_GITLAB_WEBHOOK_TOKEN = 'test_1234'
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      const hookData = testBody()
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+            // missing x-gitlab-token
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 403)
+
+          expect(room.messages).to.deep.equal([
+            // nothing
+          ])
+          done()
+        },
+      )
+    })
+
+    it('should reject malformed webhook', (done) => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      const hookData = ' { "malformed": json/ '
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 400)
+
+          expect(room.messages).to.deep.equal([
+            // nothing
+          ])
+          done()
+        },
+      )
+    })
+
+    it('should ignore webhook for non-selected event', (done) => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      const hookData = testBody()
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline?object_attributes.status=failure',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 204)
+
+          expect(room.messages).to.deep.equal([
+            // nothing
+          ])
+          done()
+        },
+      )
+    })
+
+    it('should message room for selected event', (done) => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      const hookData = testBody()
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline?object_attributes.status=success',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 200)
+
+          expect(room.messages).to.deep.equal([
+            ['hubot', ':ok_hand: Pipeline for [hapitjeter](https://gitlab.com/cru-albania-ds/hapitjeter) succeeded!'],
+          ])
+          done()
+        },
+      )
+    })
+
+    it('should match multiple query selections', (done) => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      const hookData = testBody()
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline?object_attributes.status=success&object_kind=pipeline&object_attributes.ref=deploy',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 204)
+
+          expect(room.messages).to.deep.equal([
+            // nothing
+          ])
+          done()
+        },
+      )
+    })
   })
 })
 

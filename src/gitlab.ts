@@ -28,6 +28,7 @@ const HUBOT_URL = process.env.HUBOT_URL
 const GITLAB_APP_ID = process.env.HUBOT_GITLAB_APP_ID
 const GITLAB_APP_SECRET = process.env.HUBOT_GITLAB_APP_SECRET
 const GITLAB_URL = process.env.HUBOT_GITLAB_URL
+const GITLAB_WEBHOOK_TOKEN = process.env.HUBOT_GITLAB_WEBHOOK_TOKEN
 
 module.exports = (robot: Robot) => {
 
@@ -45,6 +46,12 @@ module.exports = (robot: Robot) => {
   robot.respond(/gitlab sign in/i, { id: 'gitlab.sign_in' }, oauth.signin)
   robot.respond(/gitlab sign out/i, { id: 'gitlab.sign_out' }, oauth.signout)
 
-  const webhooks = new WebhooksListener({}, robot)
+  const webhooks = new WebhooksListener({
+    webhookBase: HUBOT_URL + '/gitlab/webhook',
+    gitlabUrl: GITLAB_URL || 'https://gitlab.com',
+    gitlabToken: GITLAB_WEBHOOK_TOKEN,
+  }, robot)
   robot.router.use('/gitlab/webhook', webhooks.router())
+
+  robot.respond(/gitlab make pipeline webhook/i, { id: 'gitlab.webhook.pipeline.make'}, webhooks.webhook_pipeline)
 }

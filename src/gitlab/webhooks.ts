@@ -1,10 +1,14 @@
 
 import { Router } from 'express'
-import { Robot } from '../hubot'
+import * as jsonQuery from 'json-query'
+
+import { Response, Robot } from '../hubot'
 import { Pipeline, Status } from './webhook_payloads'
 
 export interface IWebhooksListenerOptions {
   gitlabToken?: string
+  gitlabUrl: string
+  webhookBase: string
 }
 
 export class WebhooksListener {
@@ -18,6 +22,7 @@ export class WebhooksListener {
     this.robot = robot
 
     this.router = this.router.bind(this)
+    this.webhook_pipeline = this.webhook_pipeline.bind(this)
   }
 
   public router(): Router {
@@ -50,7 +55,40 @@ export class WebhooksListener {
         return
       }
 
+      const X_GITLAB_TOKEN: string = (this.options.gitlabToken || '').trim()
+      if (X_GITLAB_TOKEN.length > 0) {
+        const t = req.headers['x-gitlab-token']
+        if (!t || t.trim() !== X_GITLAB_TOKEN) {
+          resp.status(403)
+          resp.send('bad x-gitlab-token')
+          return
+        }
+      }
+
       const pipeline = req.body as Pipeline
+
+      for (const query in req.query) {
+        if (!req.query.hasOwnProperty(query)) { continue }
+
+        const expectation = req.query[query]
+        if (!expectation || expectation.trim().length === 0) {
+          resp.status(400)
+          resp.send('bad query value for ' + query)
+          return
+        }
+
+        const q = jsonQuery(query, { data: pipeline })
+        if (
+          !q.value ||
+          // use a loose-comparison here because we're receiving the expectation from a query string.  We should allow eg. 3 == '3'
+          // tslint:disable-next-line:triple-equals
+          (expectation !== '*' && q.value != expectation)
+        ) {
+          resp.status(204)
+          resp.send('')
+          return
+        }
+      }
 
       const msg = []
       switch (pipeline.object_attributes.status) {
@@ -62,11 +100,17 @@ export class WebhooksListener {
           const firstFailedJob = pipeline.builds
                                     .sort((b1, b2) => Date.parse(b1.finished_at).valueOf() - Date.parse(b2.finished_at).valueOf())
                                     .find((b) => b.status === 'failed')
-          msg.push(`:warning: Job \`${firstFailedJob.name}\` failed in project [${pipeline.project.name}](${pipeline.project.web_url})!`)
+          if (!firstFailedJob) {
+            msg.push(`:warning: Pipeline failed for project [${pipeline.project.name}](${pipeline.project.web_url})!`)
+          } else {
+            msg.push(`:warning: Job \`${firstFailedJob.name}\` failed in project [${pipeline.project.name}](${pipeline.project.web_url})!`)
+          }
           let commitMsg = pipeline.commit.message
           if (commitMsg.indexOf('\n') > -1) { commitMsg = commitMsg.substring(0, commitMsg.indexOf('\n')) }
           msg.push(`  commit: [${pipeline.commit.id.substring(0, 7)}](${pipeline.commit.url}) ${commitMsg} - ${pipeline.commit.author.name} (${pipeline.commit.author.email})`)
-          msg.push(`  [view logs](${pipeline.project.web_url}/builds/${firstFailedJob.id})`)
+          if (firstFailedJob) {
+            msg.push(`  [view logs](${pipeline.project.web_url}/builds/${firstFailedJob.id})`)
+          }
           break
 
         default:
@@ -80,6 +124,14 @@ export class WebhooksListener {
     })
 
     return r
+  }
+
+  public webhook_pipeline(res: Response) {
+    // https://gitlab.com/CruAlbaniaDigital/hapitjeter/settings/integrations
+    res.reply(`Please put the following webhook in the pipeline settings at ${this.options.gitlabUrl}/{namespace}/{project}/settings/integrations`,
+      'and check the box marked "Pipeline events":',
+      `\`${this.options.webhookBase}/${res.envelope.room}/pipeline\``,
+    )
   }
 }
 
