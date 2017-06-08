@@ -162,11 +162,18 @@ describe('hubot check links', () => {
 
     // assert
     expect(summary).to.have.property('status', StatusCode.success)
-    expect(summary.brokenLinks).to.deep.equal([
+    expect(summary.brokenLinks.find((l) => l.url === 'http://localhost:8081/badlink')).to.deep.equal(
       { from: 'http://localhost:8081/', reason: 'HTTP_404', statusCode: 404, statusMessage: 'Not Found', url: 'http://localhost:8081/badlink' },
+      'summary.brokenLinks',
+    )
+    expect(summary.brokenLinks.find((l) => l.url === 'http://localhost:8081/badlink2')).to.deep.equal(
       { from: 'http://localhost:8081/', reason: 'HTTP_404', statusCode: 404, statusMessage: 'Not Found', url: 'http://localhost:8081/badlink2' },
+      'summary.brokenLinks',
+    )
+    expect(summary.brokenLinks.find((l) => l.url === 'http://localhost:8081/badlink3')).to.deep.equal(
       { from: 'http://localhost:8081/', reason: 'HTTP_404', statusCode: 404, statusMessage: 'Not Found', url: 'http://localhost:8081/badlink3' },
-      ], 'summary.brokenLinks')
+      'summary.brokenLinks',
+    )
     expect(Object.keys(summary.linksChecked)).to.have.length(3, 'summary.linksChecked')
   })
 

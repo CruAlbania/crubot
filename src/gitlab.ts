@@ -24,13 +24,13 @@ import {OAuthListener} from './gitlab/oauth'
 import { WebhooksListener } from './gitlab/webhooks'
 import { Robot } from './hubot'
 
-const HUBOT_URL = process.env.HUBOT_URL
-const GITLAB_APP_ID = process.env.HUBOT_GITLAB_APP_ID
-const GITLAB_APP_SECRET = process.env.HUBOT_GITLAB_APP_SECRET
-const GITLAB_URL = process.env.HUBOT_GITLAB_URL
-const GITLAB_WEBHOOK_TOKEN = process.env.HUBOT_GITLAB_WEBHOOK_TOKEN
-
 module.exports = (robot: Robot) => {
+
+  const HUBOT_URL = process.env.HUBOT_URL
+  const GITLAB_APP_ID = process.env.HUBOT_GITLAB_APP_ID
+  const GITLAB_APP_SECRET = process.env.HUBOT_GITLAB_APP_SECRET
+  const GITLAB_URL = process.env.HUBOT_GITLAB_URL
+  const GITLAB_WEBHOOK_TOKEN = process.env.HUBOT_GITLAB_WEBHOOK_TOKEN
 
   const options = {
     gitlabUrl: GITLAB_URL || 'https://gitlab.com',
