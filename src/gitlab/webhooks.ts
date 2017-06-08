@@ -22,7 +22,7 @@ export class WebhooksListener {
     this.robot = robot
 
     this.router = this.router.bind(this)
-    this.webhook_pipeline = this.webhook_pipeline.bind(this)
+    this.webhook_make = this.webhook_make.bind(this)
   }
 
   public router(): Router {
@@ -65,24 +65,33 @@ export class WebhooksListener {
         }
       }
 
+      if (isEmpty(req.query)) {
+        req.query = { ref: 'master' } // by default ensure ref is master
+      }
+
       const pipeline = req.body as Pipeline
+
+      // move the pipeline.object_attributes to the root of the object so that 'ref=master' works in addition to 'object_attributes.ref=master'
+      const formattedForQuery = Object.assign({}, pipeline.object_attributes, pipeline)
 
       for (const query in req.query) {
         if (!req.query.hasOwnProperty(query)) { continue }
 
-        const expectation = req.query[query]
+        let expectation: string = req.query[query]
         if (!expectation || expectation.trim().length === 0) {
-          resp.status(400)
-          resp.send('bad query value for ' + query)
-          return
+          expectation = '*'
         }
-
-        const q = jsonQuery(query, { data: pipeline })
+          // escape all regex special characters except * and |
+        expectation = expectation.replace(/[-[\]{}()+?.,\\^$#\s]/g, '\\$&')
+          // * becomes .+
+        expectation = expectation.replace(/\*/g, '.*')
+          // | automatically becomes a group match - just have to wrap it with (?:<expectation>)
+        const expectationRegex = new RegExp('^(?:' + expectation + ')$', 'i')
+        const q = jsonQuery(query, { data: formattedForQuery })
+        console.log('testing', expectationRegex, 'against', q.value)
         if (
-          !q.value ||
-          // use a loose-comparison here because we're receiving the expectation from a query string.  We should allow eg. 3 == '3'
-          // tslint:disable-next-line:triple-equals
-          (expectation !== '*' && q.value != expectation)
+          !q.value ||                         // the query didn't give us a value
+          ! expectationRegex.test(q.value)    // the expectationRegex didn't match
         ) {
           resp.status(204)
           resp.send('')
@@ -126,9 +135,10 @@ export class WebhooksListener {
     return r
   }
 
-  public webhook_pipeline(res: Response) {
-    // https://gitlab.com/CruAlbaniaDigital/hapitjeter/settings/integrations
-    res.reply(`Please put the following webhook in the pipeline settings at ${this.options.gitlabUrl}/{namespace}/{project}/settings/integrations`,
+  public webhook_make(res: Response) {
+
+    // example: https://gitlab.com/CruAlbaniaDigital/hapitjeter/settings/integrations
+    res.reply(`Please put the following webhook in the project settings at ${this.options.gitlabUrl}/{namespace}/{project}/settings/integrations`,
       'and check the box marked "Pipeline events":',
       `\`${this.options.webhookBase}/${res.envelope.room}/pipeline\``,
     )
@@ -183,4 +193,9 @@ function validatePipeline(body: Pipeline): Error {
     return err
   }
   return
+}
+
+function isEmpty(obj) {
+   for (const x in obj) { if (obj.hasOwnProperty(x)) { return false } }
+   return true
 }

@@ -192,6 +192,33 @@ describe('gitlab webhooks', () => {
       )
     })
 
+    it('should by default only match master', (done) => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      const hookData = testBody()
+      hookData.object_attributes.ref = 'feature1'
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 204)
+
+          expect(room.messages).to.deep.equal([
+            // nothing
+          ])
+          done()
+        },
+      )
+    })
+
     it('should ignore webhook for non-selected event', (done) => {
       room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
 
@@ -224,7 +251,7 @@ describe('gitlab webhooks', () => {
       const hookData = testBody()
 
       // act
-      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline?object_attributes.status=success',
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline?status=success',
         {
           body: JSON.stringify(hookData),
           headers: {
@@ -250,7 +277,7 @@ describe('gitlab webhooks', () => {
       const hookData = testBody()
 
       // act
-      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline?object_attributes.status=success&object_kind=pipeline&object_attributes.ref=deploy',
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline?status=success&object_kind=pipeline&object_attributes.ref=deploy',
         {
           body: JSON.stringify(hookData),
           headers: {
@@ -269,6 +296,98 @@ describe('gitlab webhooks', () => {
         },
       )
     })
+
+    it('should handle "|" as an "or" expectation', (done) => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      const hookData = testBody()
+      hookData.object_attributes.ref = 'release'
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline?ref=master|release',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 200)
+
+          expect(room.messages).to.deep.equal([
+            ['hubot', ':ok_hand: Pipeline for [hapitjeter](https://gitlab.com/cru-albania-ds/hapitjeter) succeeded!'],
+          ])
+          done()
+        },
+      )
+    })
+
+    it('should handle "*" in expectation', (done) => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      const hookData = testBody()
+      hookData.object_attributes.ref = 'asdfq'
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline?ref=*',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 200)
+
+          expect(room.messages).to.deep.equal([
+            ['hubot', ':ok_hand: Pipeline for [hapitjeter](https://gitlab.com/cru-albania-ds/hapitjeter) succeeded!'],
+          ])
+          done()
+        },
+      )
+    })
+
+    it('should escape regex special chars', (done) => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      const hookData = testBody()
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline?commit.author.email=gordon@gordonburgett.net&project.description=*(http://hapitjeter.net)*',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 200)
+
+          expect(room.messages).to.deep.equal([
+            ['hubot', ':ok_hand: Pipeline for [hapitjeter](https://gitlab.com/cru-albania-ds/hapitjeter) succeeded!'],
+          ])
+          done()
+        },
+      )
+    })
+  })
+
+  describe('make', () => {
+    it('should generate a pipeline webhook as default')
+
+    it('should accept the pipeline option')
+
+    it('should accept the project option')
+
+    it('should include link to runkit for testing customizations')
+
+    it('should include instructions for setting x-gitlab-token if required')
   })
 })
 

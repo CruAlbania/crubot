@@ -43,8 +43,8 @@ module.exports = (robot: Robot) => {
 
   robot.logger.info('[gitlab] enabled with options ' + JSON.stringify(options))
 
-  robot.respond(/gitlab sign in/i, { id: 'gitlab.sign_in' }, oauth.signin)
-  robot.respond(/gitlab sign out/i, { id: 'gitlab.sign_out' }, oauth.signout)
+  robot.respond(/gitlab\s+sign\s+in/i, { id: 'gitlab.sign_in' }, oauth.signin)
+  robot.respond(/gitlab\s+sign\s+out/i, { id: 'gitlab.sign_out' }, oauth.signout)
 
   const webhooks = new WebhooksListener({
     webhookBase: HUBOT_URL + '/gitlab/webhook',
@@ -53,5 +53,5 @@ module.exports = (robot: Robot) => {
   }, robot)
   robot.router.use('/gitlab/webhook', webhooks.router())
 
-  robot.respond(/gitlab make pipeline webhook/i, { id: 'gitlab.webhook.pipeline.make'}, webhooks.webhook_pipeline)
+  robot.respond(/gitlab\s+(?:make|generate)(?:\s+(pipeline))?\s+webhook\s*(?:for\s+([\w/\.\-]+))?$/i, { id: 'gitlab.webhook.make'}, webhooks.webhook_make)
 }
