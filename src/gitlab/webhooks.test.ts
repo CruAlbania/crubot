@@ -28,6 +28,7 @@ describe('gitlab webhooks', () => {
     room.destroy()
     delete(process.env.HUBOT_URL)
     delete(process.env.HUBOT_GITLAB_WEBHOOK_TOKEN)
+    delete(process.env.HUBOT_GITLAB_WEBHOOK_TOKEN_GENERATE)
   })
 
   describe('pipeline', () => {
@@ -268,6 +269,59 @@ describe('gitlab webhooks', () => {
           expect(room.messages).to.deep.equal([
             // nothing
           ])
+          done()
+        },
+      )
+    })
+
+    it('should allow webhook with generated x-gitlab-token based on given secret', (done) => {
+      process.env.HUBOT_GITLAB_WEBHOOK_TOKEN = 'test_1234'
+      process.env.HUBOT_GITLAB_WEBHOOK_TOKEN_GENERATE = 'test'
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      const hookData = testBody()
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+            'x-gitlab-token': 'A9d20hxJaXPZej76ybM6J6NNORcZzs7NL8ZLS/TZ200=',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 200)
+
+          expect(room.messages).to.have.length(1)
+          done()
+        },
+      )
+    })
+
+    it('should allow webhook with randomized generated x-gitlab-token', (done) => {
+      room.robot.brain.set('gitlab.webhooks.token', 'test_5678')
+      process.env.HUBOT_GITLAB_WEBHOOK_TOKEN_GENERATE = 'test'
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      const hookData = testBody()
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+            'x-gitlab-token': 'E+Qt9hmjj5K4HS9k1zufOAk+jcU0DxbAzokPwBovSOQ=',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 200)
+          expect(room.messages).to.have.length(1)
           done()
         },
       )
@@ -542,6 +596,42 @@ describe('gitlab webhooks', () => {
         ['hubot', '@alice and check the box for events you\'re interested in:'],
         ['hubot', '@alice `https://test.url/gitlab/webhook/room1`'],
         ['hubot', '@alice You also need to set the "Secret Token" to equal the HUBOT_GITLAB_WEBHOOK_TOKEN.'],
+      ])
+    })
+
+    it('should generate room-specific x-gitlab-token if GITLAB_WEBHOOK_TOKEN_GENERATE set', async () => {
+      process.env.HUBOT_GITLAB_WEBHOOK_TOKEN_GENERATE = 'test'
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      await room.user.say('alice', 'hubot gitlab make webhook')
+      await wait(10)
+
+      const prefix: string = room.robot.brain.get('gitlab.webhooks.token')
+      const expectedToken = require('crypto').createHash('sha256').update(prefix + ':room1').digest('base64')
+
+      expect(room.messages).to.deep.equal([
+        ['alice', 'hubot gitlab make webhook'],
+        ['hubot', '@alice Please put the following webhook in the project settings at https://gitlab.com/{namespace}/{project}/settings/integrations'],
+        ['hubot', '@alice and check the box for events you\'re interested in:'],
+        ['hubot', '@alice `https://test.url/gitlab/webhook/room1`'],
+        ['hubot', `@alice You also need to set the "Secret Token" to \`${expectedToken}\``],
+      ])
+    })
+
+    it('should base room-specific x-gitlab-token on HUBOT_GITLAB_WEBHOOK_TOKEN set', async () => {
+      process.env.HUBOT_GITLAB_WEBHOOK_TOKEN = 'test_1234'
+      process.env.HUBOT_GITLAB_WEBHOOK_TOKEN_GENERATE = 'test'
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      await room.user.say('alice', 'hubot gitlab make webhook')
+      await wait(10)
+
+      expect(room.messages).to.deep.equal([
+        ['alice', 'hubot gitlab make webhook'],
+        ['hubot', '@alice Please put the following webhook in the project settings at https://gitlab.com/{namespace}/{project}/settings/integrations'],
+        ['hubot', '@alice and check the box for events you\'re interested in:'],
+        ['hubot', '@alice `https://test.url/gitlab/webhook/room1`'],
+        ['hubot', '@alice You also need to set the "Secret Token" to `A9d20hxJaXPZej76ybM6J6NNORcZzs7NL8ZLS/TZ200=`'],
       ])
     })
   })

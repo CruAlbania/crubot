@@ -1,4 +1,5 @@
 
+import {createHash, randomBytes} from 'crypto'
 import { Router } from 'express'
 import * as jsonQuery from 'json-query'
 
@@ -7,6 +8,7 @@ import { Object_Kind, Pipeline, Status } from './webhook_payloads'
 
 export interface IWebhooksListenerOptions {
   gitlabToken?: string
+  gitlabTokenGenerate: boolean
   gitlabUrl: string
   webhookBase: string
 }
@@ -49,7 +51,21 @@ export class WebhooksListener {
       `\`${this.options.webhookBase}/${res.envelope.room}${type}\``,
     ]
 
-    if (this.options.gitlabToken) {
+    if (this.options.gitlabTokenGenerate) {
+      // the prefix can be the environment variable, or a random prefix that we generate
+      let prefix: string = this.options.gitlabToken
+      if (!prefix) {
+        prefix = this.robot.brain.get<string>('gitlab.webhooks.token')
+        if (!prefix) {
+          // first time - generate and set the token
+          prefix = randomBytes(64).toString('hex')
+          this.robot.brain.set<string>('gitlab.webhooks.token', prefix)
+        }
+      }
+
+      const token = createHash('sha256').update(prefix + ':' + res.envelope.room).digest('base64')
+      ret.push(`You also need to set the "Secret Token" to \`${token}\``)
+    } else if (this.options.gitlabToken) {
       ret.push('You also need to set the "Secret Token" to equal the HUBOT_GITLAB_WEBHOOK_TOKEN.')
     }
 
@@ -79,10 +95,39 @@ export class WebhooksListener {
       }
     }
 
-    const X_GITLAB_TOKEN: string = (this.options.gitlabToken || '').trim()
-    if (X_GITLAB_TOKEN.length > 0) {
+    const room = req.params.room
+    if (! /\w+/i.test(room)) {
+      resp.status(400)
+      resp.send('bad "room" parameter - should match regex /\w+/i')
+      return
+    }
+
+    let token: string
+    if (this.options.gitlabTokenGenerate) {
       const t = req.headers['x-gitlab-token']
-      if (!t || t.trim() !== X_GITLAB_TOKEN) {
+      if (!t) {
+        resp.status(403)
+        resp.send('bad x-gitlab-token')
+        return
+      }
+
+      let prefix = this.options.gitlabToken
+      if (!prefix) {
+        prefix = this.robot.brain.get<string>('gitlab.webhooks.token')
+        if (!prefix) {
+            // can't possibly match since its never been generated
+          resp.status(403)
+          resp.send('bad x-gitlab-token')
+          return
+        }
+      }
+
+      token = createHash('sha256').update(prefix + ':' + room).digest('base64')
+    }
+
+    if (token || this.options.gitlabToken) {
+      const t = req.headers['x-gitlab-token']
+      if (!t || (t.trim() !== token && t.trim() !== this.options.gitlabToken)) {
         resp.status(403)
         resp.send('bad x-gitlab-token')
         return
@@ -99,13 +144,6 @@ export class WebhooksListener {
         // valid request, but does not produce a message.  204 no content.
       resp.status(204)
       resp.send('')
-      return
-    }
-
-    const room = req.params.room
-    if (! /\w+/i.test(room)) {
-      resp.status(400)
-      resp.send('bad "room" parameter - should match regex /\w+/i')
       return
     }
 
