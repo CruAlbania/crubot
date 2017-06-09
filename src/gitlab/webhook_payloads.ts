@@ -182,32 +182,59 @@
   }
 */
 
+/**
+ * Webhook payload for a Pipeline event
+ */
 export interface Pipeline {
+  /** always 'pipeline' */
   object_kind: Object_Kind
+  /** Info about the trigger for this pipeline */
   object_attributes: {
+      /** Gitlab internal ID of pipeline */
       id: number
       ref: string
+      /** 'False' if no tag */
       tag: boolean | string
       sha: string
       before_sha: string
-      status: Status,
+      status: Status
+      /** "2017-05-30 20:56:49 UTC" */
+      created_at: string
+      /** "2017-05-30 20:56:49 UTC" */
+      finished_at: string,
     }
+  /** User who triggered the pipeline */
   user: User
+  /** Project associated with the pipeline */
   project: Project
+  /** Commit which this pipeline is building */
   commit: Commit
+  /** The builds composing this pipeline */
   builds: Build[]
 }
 
-export type Object_Kind = 'pipeline' | 'push'
+/**
+ * Discriminator for event types
+ */
+export type Object_Kind = 'pipeline' | 'push'   // TODO: add more
 
-export type Status = 'running' | 'failed' | 'success'
+/**
+ * Status of a pipeline or build
+ */
+export type Status =  'created' | 'pending' | 'running' | 'failed' | 'success'
 
+/**
+ * Gitlab user
+ */
 export interface User {
   name: string,
   username: string,
   avatar_url: string
 }
 
+/**
+ * Gitlab project
+ */
 export interface Project {
   name: string
   description: string
@@ -221,34 +248,57 @@ export interface Project {
   default_branch: string
 }
 
+/**
+ * Commit
+ */
 export interface Commit {
+  /** SHA hash of commit id */
   id: string
+  /** Commit message - can contain newlines */
   message: string
+  /** Commit timestamp in format "2017-04-23T23:30:40+02:00" */
   timestamp: string
+  /** URL to view the commit on gitlab */
   url: string
+  /** Author of the commit according to Git (nothing to do with Gitlab user) */
   author: {
       name: string
       email: string,
     }
 }
 
+/**
+ * A build on Gitlab CI
+ *   Multiple builds compose a stage, multiple stages compose a pipeline
+ */
 export interface Build {
+  /** Internal Gitlab ID of the build */
   id: number
+  /** Stage of the build, i.e. 'build' 'test' 'deploy' etc */
   stage: string
+  /** Name as defined in gitlab-ci.yml */
   name: string
   status: Status
+  /** When the job was created in the Gitlab database, usually in response to an event.  Format: 2017-05-30 20:56:49 UTC */
   created_at: string
+  /** When the job started running. Format: 2017-05-30 20:56:49 UTC */
   started_at: string
+  /** When the job finished running. Format: 2017-05-30 20:56:49 UTC */
   finished_at: string
+  /** What triggers this build */
   when: string
+  /** Whether the build was manually triggered from the API or web interface */
   manual: boolean
+  /** Gitlab user who initiated the build */
   user: User
+  /** Info about the build runner */
   runner: {
       id: number
       description: string
       active: boolean
       is_shared: boolean,
     }
+  /** Info about any saved artifacts */
   artifacts_file: {
       filename: string
       size: number,

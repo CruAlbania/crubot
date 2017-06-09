@@ -5,6 +5,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as request from 'request'
 import * as url from 'url'
+import { Brain } from '../hubot'
 const expect = chai.expect
 
   // hubot-test-helper uses a reference to module.parent.filename to find hubot script files.
@@ -108,7 +109,111 @@ describe('gitlab webhooks', () => {
       )
     })
 
-    it('should not message room on subsequent successes')
+    it('should not message room on subsequent successes', (done) => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+      const hookData = testBody()
+
+      // act
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+        {
+          body: JSON.stringify(hookData),
+          headers: {
+            'content-type': 'application/json',
+            'accept': 'application/json',
+          },
+        }, (err, resp) => {
+          if (err) { done(err); return }
+
+          // do a second post with a new finished pipeline
+          hookData.commit = {
+            author: { name: 'Gordon Burgett', email: 'gordon@gordonburgett.net'},
+            id: '1234567890abcd',
+            message: 'a fake commit',
+            timestamp: '2017-04-24T23:30:40+02:00',
+            url: 'http://www.gitlab.com/asdf/1234567890abcd',
+          }
+          hookData.object_attributes.id = hookData.object_attributes.id + 1
+          hookData.object_attributes.sha = hookData.object_attributes.before_sha = '1234567890abcd'
+          hookData.object_attributes.finished_at = '2017-04-23 21:36:17 UTC' // +1 hour
+
+          request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+            {
+              body: JSON.stringify(hookData),
+              headers: {
+                'content-type': 'application/json',
+                'accept': 'application/json',
+              },
+            }, (err2, resp2) => {
+              if (err2) { done(err2); return }
+
+              expect(resp2).to.have.property('statusCode', 204)
+              expect(room.messages).to.have.length(1)
+
+              done()
+              },
+          )
+        },
+      )
+    })
+
+    it('should message only once for pending -> running -> success', (done) => {
+      (room.robot.brain as Brain).set('gitlab.webhooks.pipeline.cru-albania-ds/hapitjeter.master.room1', {
+        id: 7814600,
+        ref: 'master',
+        sha: 'test1234',
+        status: 'failed',             // last one failed - should send a "fixed" message
+        finished_at: 1492979000000,   // test data minus some time
+      })
+
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+      let hookData = testBody()
+
+      // act
+        // send a "pending" event
+      hookData.object_attributes.status = 'pending'
+      hookData.object_attributes.finished_at = null
+      hookData.object_attributes.duration = null
+      hookData.builds[0].status = 'running'
+      hookData.builds[0].finished_at = null
+      hookData.builds[1].status = 'created'
+      hookData.builds[1].runner = null; hookData.builds[1].finished_at = null; hookData.builds[1].started_at = null
+      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+        { body: JSON.stringify(hookData), headers: { 'content-type': 'application/json', 'accept': 'application/json' } },
+        (err, resp) => {
+          if (err) { done(err); return }
+
+          expect(resp).to.have.property('statusCode', 204)
+
+            // send a "running" event
+          hookData.object_attributes.status = 'running'
+
+          request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+            { body: JSON.stringify(hookData), headers: { 'content-type': 'application/json', 'accept': 'application/json' } },
+            (err2, resp2) => {
+              if (err2) { done(err2); return }
+
+              expect(resp2).to.have.property('statusCode', 204)
+
+              // send a "success" event
+              hookData = testBody()
+              request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+                { body: JSON.stringify(hookData), headers: { 'content-type': 'application/json', 'accept': 'application/json' } },
+                (err3, resp3) => {
+                  if (err3) { done(err3); return }
+
+                  expect(resp3).to.have.property('statusCode', 200)
+                  expect(room.messages).to.deep.equal([
+                    ['hubot', ':ok_hand: Pipeline for [hapitjeter](https://gitlab.com/cru-albania-ds/hapitjeter) fixed!'],
+                  ])
+
+                  done()
+                },
+              )
+            },
+          )
+        },
+      )
+    })
 
     it('should reject webhook with bad x-gitlab-token', (done) => {
       process.env.HUBOT_GITLAB_WEBHOOK_TOKEN = 'test_1234'

@@ -22,7 +22,17 @@ export class WebhooksListener {
     this.robot = robot
 
     this.router = this.router.bind(this)
+    this.handle = this.handle.bind(this)
     this.webhook_make = this.webhook_make.bind(this)
+  }
+
+  public webhook_make(res: Response) {
+
+    // example: https://gitlab.com/CruAlbaniaDigital/hapitjeter/settings/integrations
+    res.reply(`Please put the following webhook in the project settings at ${this.options.gitlabUrl}/{namespace}/{project}/settings/integrations`,
+      'and check the box for events you\'re interested in:',
+      `\`${this.options.webhookBase}/${res.envelope.room}\``,
+    )
   }
 
   public router(): Router {
@@ -31,117 +41,132 @@ export class WebhooksListener {
 
     const r = Router()
 
-    r.post('/:room/pipeline', (req, resp) => {
-      if (typeof(req.body) === 'string') {
-        try {
-          req.body = JSON.parse(req.body)
-        } catch (err) {
-          resp.status(400)
-          resp.send(err.toString())
-          return
-        }
-      }
-      const err = validatePipeline(req.body)
-      if (err) {
-        resp.status(400)
-        resp.send(err.toString())
-        return
-      }
-
-      const room = req.params.room
-      if (! /\w+/i.test(room)) {
-        resp.status(400)
-        resp.send('bad "room" parameter - should match regex /\w+/i')
-        return
-      }
-
-      const X_GITLAB_TOKEN: string = (this.options.gitlabToken || '').trim()
-      if (X_GITLAB_TOKEN.length > 0) {
-        const t = req.headers['x-gitlab-token']
-        if (!t || t.trim() !== X_GITLAB_TOKEN) {
-          resp.status(403)
-          resp.send('bad x-gitlab-token')
-          return
-        }
-      }
-
-      if (isEmpty(req.query)) {
-        req.query = { ref: 'master' } // by default ensure ref is master
-      }
-
-      const pipeline = req.body as Pipeline
-
-      // move the pipeline.object_attributes to the root of the object so that 'ref=master' works in addition to 'object_attributes.ref=master'
-      const formattedForQuery = Object.assign({}, pipeline.object_attributes, pipeline)
-
-      for (const query in req.query) {
-        if (!req.query.hasOwnProperty(query)) { continue }
-
-        let expectation: string = req.query[query]
-        if (!expectation || expectation.trim().length === 0) {
-          expectation = '*'
-        }
-          // escape all regex special characters except * and |
-        expectation = expectation.replace(/[-[\]{}()+?.,\\^$#\s]/g, '\\$&')
-          // * becomes .+
-        expectation = expectation.replace(/\*/g, '.*')
-          // | automatically becomes a group match - just have to wrap it with (?:<expectation>)
-        const expectationRegex = new RegExp('^(?:' + expectation + ')$', 'i')
-        const q = jsonQuery(query, { data: formattedForQuery })
-        console.log('testing', expectationRegex, 'against', q.value)
-        if (
-          !q.value ||                         // the query didn't give us a value
-          ! expectationRegex.test(q.value)    // the expectationRegex didn't match
-        ) {
-          resp.status(204)
-          resp.send('')
-          return
-        }
-      }
-
-      const msg = []
-      switch (pipeline.object_attributes.status) {
-        case 'success':
-          msg.push(`:ok_hand: Pipeline for [${pipeline.project.name}](${pipeline.project.web_url}) succeeded!`)
-          break
-
-        case 'failed':
-          const firstFailedJob = pipeline.builds
-                                    .sort((b1, b2) => Date.parse(b1.finished_at).valueOf() - Date.parse(b2.finished_at).valueOf())
-                                    .find((b) => b.status === 'failed')
-          if (!firstFailedJob) {
-            msg.push(`:warning: Pipeline failed for project [${pipeline.project.name}](${pipeline.project.web_url})!`)
-          } else {
-            msg.push(`:warning: Job \`${firstFailedJob.name}\` failed in project [${pipeline.project.name}](${pipeline.project.web_url})!`)
-          }
-          let commitMsg = pipeline.commit.message
-          if (commitMsg.indexOf('\n') > -1) { commitMsg = commitMsg.substring(0, commitMsg.indexOf('\n')) }
-          msg.push(`  commit: [${pipeline.commit.id.substring(0, 7)}](${pipeline.commit.url}) ${commitMsg} - ${pipeline.commit.author.name} (${pipeline.commit.author.email})`)
-          if (firstFailedJob) {
-            msg.push(`  [view logs](${pipeline.project.web_url}/builds/${firstFailedJob.id})`)
-          }
-          break
-
-        default:
-
-          break
-      }
-
-      self.robot.messageRoom(room, msg.join('  \n'))
-
-      resp.send(msg.join('  \n'))
-    })
+    r.post('/:room/:type', this.handle)
 
     return r
   }
 
-  public webhook_make(res: Response) {
+  public handle(req, resp) {
+    if (typeof(req.body) === 'string') {
+      try {
+        req.body = JSON.parse(req.body)
+      } catch (err) {
+        resp.status(400)
+        resp.send(err.toString())
+        return
+      }
+    }
 
-    // example: https://gitlab.com/CruAlbaniaDigital/hapitjeter/settings/integrations
-    res.reply(`Please put the following webhook in the project settings at ${this.options.gitlabUrl}/{namespace}/{project}/settings/integrations`,
-      'and check the box marked "Pipeline events":',
-      `\`${this.options.webhookBase}/${res.envelope.room}/pipeline\``,
-    )
+    const X_GITLAB_TOKEN: string = (this.options.gitlabToken || '').trim()
+    if (X_GITLAB_TOKEN.length > 0) {
+      const t = req.headers['x-gitlab-token']
+      if (!t || t.trim() !== X_GITLAB_TOKEN) {
+        resp.status(403)
+        resp.send('bad x-gitlab-token')
+        return
+      }
+    }
+
+    if (req.params.type && req.params.type !== req.body.object_kind) {
+      resp.status(403)
+      resp.send('unexpected object_kind: ' + req.body.object_kind)
+      return
+    }
+
+    if (!select(req.query, req.body)) {
+        // valid request, but does not produce a message.  204 no content.
+      resp.status(204)
+      resp.send('')
+      return
+    }
+
+    const room = req.params.room
+    if (! /\w+/i.test(room)) {
+      resp.status(400)
+      resp.send('bad "room" parameter - should match regex /\w+/i')
+      return
+    }
+
+    let message: string[]
+    switch (req.body.object_kind) {
+      case 'pipeline':
+        const err = validatePipeline(req.body)
+        if (err) {
+          resp.status(400)
+          resp.send(err.toString())
+          return
+        }
+        message = this.handler_pipeline(req.body, room)
+        break
+
+      default:
+        resp.status(404)
+        resp.send('no handler for object_kind ' + req.body.object_kind)
+        return
+    }
+
+    if (message && message.length > 0) {
+      const formattedMsg = message.join('  \n')
+      this.robot.messageRoom(room, formattedMsg)
+      resp.send(formattedMsg)
+    } else {
+      resp.status(204)
+      resp.send('')
+    }
+  }
+
+  private handler_pipeline(pipeline: Pipeline, room: string): string[] {
+    const current: IPipelineHistory = {
+      id: pipeline.object_attributes.id,
+      ref: pipeline.object_attributes.ref,
+      sha: pipeline.object_attributes.sha,
+      status: pipeline.object_attributes.status,
+      finished_at: Date.parse(pipeline.object_attributes.finished_at),
+    }
+
+    const msg = []
+    switch (pipeline.object_attributes.status) {
+      case 'success':
+        const last = this.robot.brain.get<IPipelineHistory>(makeHistoryKey(pipeline, room))
+          // if last exists, and represents a previous build (not the same ID & finished before this one)
+        if (last && last.id !== current.id && last.finished_at < current.finished_at) {
+          if (last.status === 'success') {
+            // no reason to say anything for repeated successes
+          } else if (last.status === 'failed') {
+            // it's a "fixed" build
+            msg.push(`:ok_hand: Pipeline for [${pipeline.project.name}](${pipeline.project.web_url}) fixed!`)
+          }
+        } else {
+          msg.push(`:ok_hand: Pipeline for [${pipeline.project.name}](${pipeline.project.web_url}) succeeded!`)
+        }
+
+        this.robot.brain.set<IPipelineHistory>(makeHistoryKey(pipeline, room), current)
+        break
+
+      case 'failed':
+        const firstFailedJob = pipeline.builds
+                                  .sort((b1, b2) => Date.parse(b1.finished_at).valueOf() - Date.parse(b2.finished_at).valueOf())
+                                  .find((b) => b.status === 'failed')
+        if (!firstFailedJob) {
+          msg.push(`:warning: Pipeline failed for project [${pipeline.project.name}](${pipeline.project.web_url})!`)
+        } else {
+          msg.push(`:warning: Job \`${firstFailedJob.name}\` failed in project [${pipeline.project.name}](${pipeline.project.web_url})!`)
+        }
+        let commitMsg = pipeline.commit.message
+        if (commitMsg.indexOf('\n') > -1) { commitMsg = commitMsg.substring(0, commitMsg.indexOf('\n')) }
+        msg.push(`  commit: [${pipeline.commit.id.substring(0, 7)}](${pipeline.commit.url}) ${commitMsg} - ${pipeline.commit.author.name} (${pipeline.commit.author.email})`)
+        if (firstFailedJob) {
+          msg.push(`  [view logs](${pipeline.project.web_url}/builds/${firstFailedJob.id})`)
+        }
+
+        this.robot.brain.set<IPipelineHistory>(makeHistoryKey(pipeline, room), current)
+        break
+
+      default:
+
+        break
+    }
+    return msg
   }
 }
 
@@ -182,10 +207,7 @@ function validatePipeline(body: Pipeline): Error {
     return Error('bad builds')
   }
   const err = body.builds.map((b, idx) => {
-                if (!b.finished_at || typeof(b.finished_at) !== 'string') {
-                  return Error(`bad builds[${idx}].finished_at`)
-                }
-                if (!b.status || typeof(b.finished_at) !== 'string') {
+                if (!b.status || typeof(b.status) !== 'string') {
                   return Error(`bad builds[${idx}].status`)
                 }
               }).find((e) => e !== undefined)
@@ -195,7 +217,55 @@ function validatePipeline(body: Pipeline): Error {
   return
 }
 
+function select(query: { [key: string]: string}, body: any): boolean {
+  if (isEmpty(query)) {
+    query = { ref: 'master' } // by default ensure ref is master
+  }
+
+  // move the object_attributes to the root of the object so that 'ref=master' works in addition to 'object_attributes.ref=master'
+  if (body.object_attributes) {
+    body = Object.assign({}, body.object_attributes, body)
+  }
+
+  for (const q in query) {
+    if (!query.hasOwnProperty(q)) { continue }
+
+    let expectation: string = query[q]
+    if (!expectation || expectation.trim().length === 0) {
+      expectation = '*'
+    }
+      // escape all regex special characters except * and |
+    expectation = expectation.replace(/[-[\]{}()+?.,\\^$#\s]/g, '\\$&')
+      // * becomes .+
+    expectation = expectation.replace(/\*/g, '.*')
+      // | automatically becomes a group match - just have to wrap it with (?:<expectation>)
+    const expectationRegex = new RegExp('^(?:' + expectation + ')$', 'i')
+    const result = jsonQuery(q, { data: body })
+    if (
+      !result.value ||                         // the query didn't give us a value
+      ! expectationRegex.test(result.value)    // the expectationRegex didn't match
+    ) {
+      return false
+    }
+  }
+
+  return true
+}
+
 function isEmpty(obj) {
-   for (const x in obj) { if (obj.hasOwnProperty(x)) { return false } }
-   return true
+  if (!obj) { return true }
+  for (const x in obj) { if (obj.hasOwnProperty(x)) { return false } }
+  return true
+}
+
+interface IPipelineHistory {
+  id: number
+  ref: string
+  sha: string
+  status: Status
+  finished_at: number
+}
+
+function makeHistoryKey(pipeline: Pipeline, room: string): string {
+  return `gitlab.webhooks.pipeline.${pipeline.project.path_with_namespace}.${pipeline.object_attributes.ref}.${room}`
 }

@@ -41,7 +41,7 @@ module.exports = (robot: Robot) => {
   const oauth = new OAuthListener(options, robot)
   robot.router.use('/gitlab/oauth', oauth.router())
 
-  robot.logger.info('[gitlab] enabled with options ' + JSON.stringify(options))
+  robot.logger.debug('[gitlab] enabled with options ' + JSON.stringify(options))
 
   robot.respond(/gitlab\s+sign\s+in/i, { id: 'gitlab.sign_in' }, oauth.signin)
   robot.respond(/gitlab\s+sign\s+out/i, { id: 'gitlab.sign_out' }, oauth.signout)
