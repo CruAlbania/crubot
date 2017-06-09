@@ -8,11 +8,6 @@ const expect = chai.expect
 
 import {UserToken} from './oauth'
 
-process.env.HUBOT_GITLAB_URL = 'http://localhost:8081'
-process.env.HUBOT_GITLAB_APP_ID = 'test_app_id'
-process.env.HUBOT_GITLAB_APP_SECRET = 'test_app_secret'
-process.env.HUBOT_URL = 'https://hubot.myurl.test'
-
   // hubot-test-helper uses a reference to module.parent.filename to find hubot script files.
   // this screws with tests that are in different different directories - whichever is required first sets the module.
   // So we delete and re-require it every time.
@@ -25,11 +20,19 @@ describe('OAuthListener', () => {
   let room: any
 
   beforeEach(() => {
+    process.env.HUBOT_GITLAB_URL = 'http://localhost:8081'
+    process.env.HUBOT_GITLAB_APP_ID = 'test_app_id'
+    process.env.HUBOT_GITLAB_APP_SECRET = 'test_app_secret'
+    process.env.HUBOT_URL = 'https://hubot.myurl.test'
     room = helper.createRoom()
   })
 
   afterEach(() => {
     room.destroy()
+    delete(process.env.HUBOT_GITLAB_URL)
+    delete(process.env.HUBOT_GITLAB_APP_ID)
+    delete(process.env.HUBOT_GITLAB_APP_SECRET)
+    delete(process.env.HUBOT_URL)
   })
 
   describe('sign in', ()  => {
