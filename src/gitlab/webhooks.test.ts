@@ -20,11 +20,13 @@ describe('gitlab webhooks', () => {
   let room: any
 
   beforeEach(() => {
+    process.env.HUBOT_URL = 'https://test.url/'
     room = helper.createRoom()
   })
 
   afterEach(() => {
     room.destroy()
+    delete(process.env.HUBOT_URL)
     delete(process.env.HUBOT_GITLAB_WEBHOOK_TOKEN)
   })
 
@@ -34,7 +36,7 @@ describe('gitlab webhooks', () => {
       const hookData = testBody()
 
       // act
-      request.post('http://localhost:8080/gitlab/webhook/room1/pipeline',
+      request.post('http://localhost:8080/gitlab/webhook/room1',
         {
           body: JSON.stringify(hookData),
           headers: {
@@ -484,15 +486,64 @@ describe('gitlab webhooks', () => {
   })
 
   describe('make', () => {
-    it('should generate a pipeline webhook as default')
 
-    it('should accept the pipeline option')
+    it('should generate a base webhook as default', async () => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
 
-    it('should accept the project option')
+      await room.user.say('alice', 'hubot gitlab make webhook')
+      await wait(10)
 
-    it('should include link to runkit for testing customizations')
+      expect(room.messages).to.deep.equal([
+        ['alice', 'hubot gitlab make webhook'],
+        ['hubot', '@alice Please put the following webhook in the project settings at https://gitlab.com/{namespace}/{project}/settings/integrations'],
+        ['hubot', '@alice and check the box for events you\'re interested in:'],
+        ['hubot', '@alice `https://test.url/gitlab/webhook/room1`'],
+      ])
+    })
 
-    it('should include instructions for setting x-gitlab-token if required')
+    it('should accept the pipeline option', async () => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      await room.user.say('alice', 'hubot gitlab make pipeline webhook')
+      await wait(10)
+
+      expect(room.messages).to.deep.equal([
+        ['alice', 'hubot gitlab make pipeline webhook'],
+        ['hubot', '@alice Please put the following webhook in the project settings at https://gitlab.com/{namespace}/{project}/settings/integrations'],
+        ['hubot', '@alice and check the box for events you\'re interested in:'],
+        ['hubot', '@alice `https://test.url/gitlab/webhook/room1/pipeline`'],
+      ])
+    })
+
+    it('should accept the project option', async () => {
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      await room.user.say('alice', 'hubot gitlab make webhook for project CruAlbaniaDigital/hapitjeter')
+      await wait(10)
+
+      expect(room.messages).to.deep.equal([
+        ['alice', 'hubot gitlab make webhook for project CruAlbaniaDigital/hapitjeter'],
+        ['hubot', '@alice Please put the following webhook in the project settings at https://gitlab.com/CruAlbaniaDigital/hapitjeter/settings/integrations'],
+        ['hubot', '@alice and check the box for events you\'re interested in:'],
+        ['hubot', '@alice `https://test.url/gitlab/webhook/room1`'],
+      ])
+    })
+
+    it('should include instructions for setting x-gitlab-token if required', async () => {
+      process.env.HUBOT_GITLAB_WEBHOOK_TOKEN = 'test_1234'
+      room.robot.loadFile(path.resolve(path.join(__dirname, '../')), 'gitlab.ts')
+
+      await room.user.say('alice', 'hubot gitlab make webhook')
+      await wait(10)
+
+      expect(room.messages).to.deep.equal([
+        ['alice', 'hubot gitlab make webhook'],
+        ['hubot', '@alice Please put the following webhook in the project settings at https://gitlab.com/{namespace}/{project}/settings/integrations'],
+        ['hubot', '@alice and check the box for events you\'re interested in:'],
+        ['hubot', '@alice `https://test.url/gitlab/webhook/room1`'],
+        ['hubot', '@alice You also need to set the "Secret Token" to equal the HUBOT_GITLAB_WEBHOOK_TOKEN.'],
+      ])
+    })
   })
 })
 
@@ -597,4 +648,14 @@ function testBody() {
       },
     ],
   }
+}
+
+// since we might override setTimeout with sinon timers, capture it here and use it instead
+const origSetTimeout = setTimeout
+function wait(milliseconds: number): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    origSetTimeout(() => {
+      resolve()
+    }, milliseconds)
+  })
 }

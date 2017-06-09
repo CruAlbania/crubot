@@ -3,7 +3,7 @@ import { Router } from 'express'
 import * as jsonQuery from 'json-query'
 
 import { Response, Robot } from '../hubot'
-import { Pipeline, Status } from './webhook_payloads'
+import { Object_Kind, Pipeline, Status } from './webhook_payloads'
 
 export interface IWebhooksListenerOptions {
   gitlabToken?: string
@@ -21,6 +21,9 @@ export class WebhooksListener {
     this.options = options
     this.robot = robot
 
+    this.options.gitlabUrl = this.options.gitlabUrl.replace(/\/+$/g, '')
+    this.options.webhookBase = this.options.webhookBase.replace(/\/+$/g, '')
+
     this.router = this.router.bind(this)
     this.handle = this.handle.bind(this)
     this.webhook_make = this.webhook_make.bind(this)
@@ -28,11 +31,29 @@ export class WebhooksListener {
 
   public webhook_make(res: Response) {
 
+    let type = res.match[1]
+    if (type) {
+      type = '/' + type
+    } else {
+      type = ''
+    }
+
+    let proj = res.match[2]
+    if (!proj) {
+      proj = '{namespace}/{project}'
+    }
+
     // example: https://gitlab.com/CruAlbaniaDigital/hapitjeter/settings/integrations
-    res.reply(`Please put the following webhook in the project settings at ${this.options.gitlabUrl}/{namespace}/{project}/settings/integrations`,
+    const ret = [`Please put the following webhook in the project settings at ${this.options.gitlabUrl}/${proj}/settings/integrations`,
       'and check the box for events you\'re interested in:',
-      `\`${this.options.webhookBase}/${res.envelope.room}\``,
-    )
+      `\`${this.options.webhookBase}/${res.envelope.room}${type}\``,
+    ]
+
+    if (this.options.gitlabToken) {
+      ret.push('You also need to set the "Secret Token" to equal the HUBOT_GITLAB_WEBHOOK_TOKEN.')
+    }
+
+    res.reply(...ret)
   }
 
   public router(): Router {
@@ -41,6 +62,7 @@ export class WebhooksListener {
 
     const r = Router()
 
+    r.post('/:room/', this.handle)
     r.post('/:room/:type', this.handle)
 
     return r
@@ -88,7 +110,7 @@ export class WebhooksListener {
     }
 
     let message: string[]
-    switch (req.body.object_kind) {
+    switch (req.body.object_kind as Object_Kind) {
       case 'pipeline':
         const err = validatePipeline(req.body)
         if (err) {
@@ -101,7 +123,7 @@ export class WebhooksListener {
 
       default:
         resp.status(404)
-        resp.send('no handler for object_kind ' + req.body.object_kind)
+        resp.send('unknown object_kind ' + req.body.object_kind)
         return
     }
 

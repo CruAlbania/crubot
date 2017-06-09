@@ -26,11 +26,14 @@ import { Robot } from './hubot'
 
 module.exports = (robot: Robot) => {
 
-  const HUBOT_URL = process.env.HUBOT_URL
-  const GITLAB_APP_ID = process.env.HUBOT_GITLAB_APP_ID
-  const GITLAB_APP_SECRET = process.env.HUBOT_GITLAB_APP_SECRET
-  const GITLAB_URL = process.env.HUBOT_GITLAB_URL
-  const GITLAB_WEBHOOK_TOKEN = process.env.HUBOT_GITLAB_WEBHOOK_TOKEN
+  let HUBOT_URL: string              = process.env.HUBOT_URL
+  const GITLAB_APP_ID: string        = process.env.HUBOT_GITLAB_APP_ID
+  const GITLAB_APP_SECRET: string    = process.env.HUBOT_GITLAB_APP_SECRET
+  let GITLAB_URL: string             = process.env.HUBOT_GITLAB_URL
+  const GITLAB_WEBHOOK_TOKEN: string = process.env.HUBOT_GITLAB_WEBHOOK_TOKEN
+
+  if (HUBOT_URL) { HUBOT_URL = HUBOT_URL.replace(/\/+$/g, '') }
+  if (GITLAB_URL) { GITLAB_URL = GITLAB_URL.replace(/\/+$/g, '') }
 
   const options = {
     gitlabUrl: GITLAB_URL || 'https://gitlab.com',
@@ -53,5 +56,5 @@ module.exports = (robot: Robot) => {
   }, robot)
   robot.router.use('/gitlab/webhook', webhooks.router())
 
-  robot.respond(/gitlab\s+(?:make|generate)(?:\s+(pipeline))?\s+webhook\s*(?:for\s+([\w/\.\-]+))?$/i, { id: 'gitlab.webhook.make'}, webhooks.webhook_make)
+  robot.respond(/gitlab\s+(?:make|generate)(?:\s+(pipeline))?\s+webhook\s*(?:for(?:\s+project)?\s+([\w\.\/\-]+))?$/i, { id: 'gitlab.webhook.make'}, webhooks.webhook_make)
 }
